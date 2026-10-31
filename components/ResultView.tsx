@@ -1,0 +1,448 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, TrendingUp } from "lucide-react";
+import type { Card } from "@/lib/scoring/types";
+import PlayerCard from "./PlayerCard";
+import TiltCard from "./TiltCard";
+import StoryFrame from "./StoryFrame";
+import CardActions from "./CardActions";
+import DuelButton from "./DuelButton";
+import RescoutLine from "./RescoutLine";
+import RankLine from "./leaderboard/RankLine";
+import FlagPicker from "./FlagPicker";
+import Mascot from "./Mascot";
+import FooterCredit from "./FooterCredit";
+import GithubStar from "./GithubStar";
+import dynamic from "next/dynamic";
+import { AttributesPanel, MetricsPanel, ReportHeader } from "./ScoutReport";
+import DistributionPanel from "./DistributionPanel";
+import AwardModal from "./AwardModal";
+import TrophySprite, { AWARD_SPRITES } from "./TrophySprite";
+import { AWARD_META, groupAwards, type AwardGroup } from "@/lib/awards";
+import { teamName } from "@/lib/squad";
+import { confettiPalette, resolveCardTheme, resolveResultTheme } from "./finishTheme";
+import { useReveal } from "@/hooks/useReveal";
+import { burstConfetti } from "@/lib/confetti";
+import type { BoardRank } from "@/lib/leaderboard";
+
+const HowItWorksModal = dynamic(() => import("./HowItWorksModal"), { ssr: false });
+
+interface Props {
+  card: Card;
+  onBack: () => void;
+  /** Edit the card's flag from the report (click-the-flag picker). */
+  onCountryChange: (code: string) => void;
+  /** Repo stars for the footer credit's star/repo link (null = no count shown). */
+  stars?: number | null;
+  /** GitHub-derived flag; share links only carry ?country= when it's overridden. */
+  canonicalCountry?: string;
+  /** Takes the card a re-scout rebuilt; without it the "Scouted … ago" line is hidden. */
+  onRescouted?: (card: Card) => void;
+  /** The card's world rank on the leaderboard; null/absent (unranked) hides the line. */
+  rank?: BoardRank | null;
+  /** Rendered as the feature tour's demo stage: drop the support pills, which
+   *  are promo chrome with nothing to do with the tour (and float above it),
+   *  and hold the header still so the camera's scaling doesn't fight it. */
+  demo?: boolean;
+}
+
+// Card width scales with the viewport but is bounded by BOTH width and height
+// (and a hard min/max) so it never overflows a narrow phone or a short laptop.
+const CARD_WIDTH = "clamp(220px, min(80vw, 40vh), 332px)";
+
+export default function ResultView({
+  card,
+  onBack,
+  onCountryChange,
+  stars,
+  canonicalCountry = "",
+  onRescouted,
+  rank = null,
+  demo = false,
+}: Props) {
+  const captureRef = useRef<HTMLDivElement>(null);
+  const storyRef = useRef<HTMLDivElement>(null);
+  const theme = resolveResultTheme(card);
+  const phase = useReveal(card.finish);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [rankOpen, setRankOpen] = useState(false);
+  const [activeAward, setActiveAward] = useState<AwardGroup | null>(null);
+  // No trophies -> no cabinet: the distribution graph keeps its old panel slot
+  // and the rank modal/link never render.
+  const hasAwards = groupAwards(card.awards).length > 0;
+
+  // BACK when the visitor came from home this tab; otherwise (direct / shared
+  // link) a CTA to make their own card. Default to the CTA so share-link
+  // visitors — the growth case — see it without a flash.
+  const [seenHome, setSeenHome] = useState(false);
+  useEffect(() => {
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem("githoop:seen-home") === "1";
+    } catch {}
+    // Deferred (not a synchronous set-in-effect) so it can't cascade a render.
+    const t = setTimeout(() => setSeenHome(seen), 0);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Fire confetti when the rare-tier reveal hits its burst, in the card's own
+  // tier palette (founders burst in their accent) — see finishTheme.
+  useEffect(() => {
+    if (phase === "burst") burstConfetti(confettiPalette(card));
+  }, [phase, card]);
+
+  const ignited = phase === "ignite" || phase === "burst" || phase === "freeze";
+
+  return (
+    <>
+    <main className="relative z-[2] mx-auto flex min-h-[100dvh] w-full max-w-[1280px] flex-col px-[clamp(16px,4vw,22px)]">
+      {/* Tier-reactive backdrop: dims the global green wash and lets the card's
+          own tier color own the result screen (green is the action, the card is
+          the prize — they shouldn't fight here). Fades in with the reveal. The
+          bottom fade-out keeps it from burying the contribution-grid motif on
+          the floor: full tier wash up top, the grid stays lit below. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background: `radial-gradient(120% 80% at 50% -10%, ${theme.glow}, transparent 55%), #111111`,
+          opacity: ignited ? 0.9 : 0.4,
+          transition: "opacity 1s ease",
+          WebkitMaskImage: "linear-gradient(to bottom, #000 68%, rgba(0,0,0,.25) 100%)",
+          maskImage: "linear-gradient(to bottom, #000 68%, rgba(0,0,0,.25) 100%)",
+        }}
+      />
+
+      {/* top bar: BACK button + mascot on the left, "leaderboard" and "how it
+          works" on the right. The leaderboard link gives way first on narrow
+          screens (the rank line under the metrics links there too). */}
+      <div className="mb-[8px] mt-[clamp(8px,2vh,18px)] flex w-full shrink-0 items-center justify-between gap-[10px]">
+        <div className="flex items-center gap-[10px]">
+          <button
+            onClick={onBack}
+            className={
+              seenHome
+                ? "group inline-flex items-center gap-[6px] text-[13px] font-medium tracking-wide text-ink-faint transition hover:text-ink"
+                : "group inline-flex items-center gap-[6px] text-[13px] font-semibold tracking-wide text-brand transition hover:text-brand-hi"
+            }
+          >
+            {seenHome ? (
+              <>
+                <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
+                BACK
+              </>
+            ) : (
+              <>
+                <ArrowLeft size={16} className="transition-transform group-hover:translate-x-0.5" />
+                GET SCOUTED
+              </>
+            )}
+          </button>
+          <Mascot size={40} kick={false} ball={false} animate={false} />
+        </div>
+        <div className="flex items-center gap-[clamp(10px,2vw,16px)] justify-end">
+          <Link
+            href="/leaderboard"
+            className="text-[12.5px] font-semibold text-ink-soft underline-offset-2 transition hover:text-brand hover:underline max-[640px]:hidden"
+          >
+            leaderboard ↗
+          </Link>
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="cursor-pointer text-[12.5px] font-semibold text-ink-soft underline-offset-2 transition hover:text-brand hover:underline max-[420px]:hidden"
+          >
+            how it works ↗
+          </button>
+          <GithubStar stars={stars ?? null} />
+        </div>
+      </div>
+
+      <div className="shrink-0">
+        <ReportHeader card={card} still={demo} />
+      </div>
+
+      <div className="mt-[clamp(14px,2.4vh,26px)] grid grid-cols-[1fr_auto_1fr] items-start gap-[clamp(16px,2.4vw,40px)] max-[980px]:mt-6 max-[980px]:flex max-[980px]:flex-col max-[980px]:items-center">
+        {/* left — attributes + playstyles */}
+        <div className="flex justify-end max-[980px]:order-2 max-[980px]:w-full max-[980px]:max-w-[420px] max-[980px]:justify-center">
+          <div className="w-full max-w-[360px] flex flex-col gap-[14px]">
+            <AttributesPanel card={card} />
+          </div>
+        </div>
+
+        {/* center — the card + actions (the walkout happens here) */}
+        <div className="relative flex flex-col items-center gap-[clamp(12px,2vh,18px)] max-[980px]:order-1 mb-14">
+          {/* spotlight wash — a soft, diffuse glow from above as the card rises.
+              Reduced + blurred so it reads as ambient light, not a hard beam. */}
+          <div
+            className="animate-spotlight pointer-events-none absolute left-1/2 top-[-10%] z-0 h-[70%] w-[120%] blur-[40px]"
+            style={{
+              background: `radial-gradient(60% 70% at 50% 0%, ${theme.glow}, transparent 72%)`,
+              opacity: ignited ? 0.4 : 0,
+              transition: "opacity .5s ease",
+            }}
+          />
+          {/* card stage — holds the captured card AND the flag editor as siblings.
+              The editor overlays the flag slot but lives OUTSIDE captureRef, so the
+              downloaded/copied PNG never includes the picker UI. */}
+          <div className="animate-walkout relative" style={{ width: CARD_WIDTH }}>
+            {/* The tilt wraps captureRef rather than sitting inside it, so the hover
+                glass is a sibling of the captured tree and never lands in the PNG.
+                maskSrc clips the shine to the card's own silhouette. */}
+            <TiltCard maskSrc={resolveCardTheme(card).bg}>
+              <div ref={captureRef} className="relative">
+                <div
+                  className="animate-glow pointer-events-none absolute -inset-[12%] z-0 rounded-full"
+                  style={{
+                    background: `radial-gradient(closest-side, ${theme.glow}, transparent 72%)`,
+                    opacity: ignited ? 1 : 0,
+                    transition: "opacity .6s ease",
+                  }}
+                />
+                <div className="relative z-[1]">
+                  <PlayerCard card={card} />
+                </div>
+              </div>
+            </TiltCard>
+            <FlagPicker value={card.country} onChange={onCountryChange} />
+          </div>
+          <div className="flex flex-col gap-[10px]" style={{ width: CARD_WIDTH }}>
+            <CardActions
+              card={card}
+              targetRef={captureRef}
+              storyRef={storyRef}
+              canonicalCountry={canonicalCountry}
+            />
+            <div data-tour="duel">
+              <DuelButton login={card.login} />
+            </div>
+            {!demo && (
+              <Link
+                href={`/${card.login}/progress`}
+                className="flex h-[46px] w-full items-center justify-center gap-[10px] rounded-xl border border-line bg-white/[0.03] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-brand/55 hover:shadow-[0_10px_26px_-12px_rgba(242,138,67,.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 active:translate-y-0 active:scale-[.985]"
+              >
+                <span className="font-display text-[19px] tracking-[.1em] text-ink">SHOW PROGRESSION</span>
+                <TrendingUp size={17} className="text-brand" aria-hidden />
+              </Link>
+            )}
+            {/* Squads go by the GitHub-derived country, not a flag picked on the card. */}
+            {!demo && canonicalCountry && (
+              <Link
+                href={`/squads/${canonicalCountry}`}
+                className="self-center text-[12px] font-semibold text-ink-soft underline-offset-2 transition hover:text-brand hover:underline"
+              >
+                See the {teamName(canonicalCountry) ?? canonicalCountry.toUpperCase()} squad ↗
+              </Link>
+            )}
+          </div>
+          {/* Mobile cabinet: right under the duel CTA, before the report panels
+              stack — the stacked layout's most visible slot after the card. */}
+          {hasAwards && (
+            <div className="hidden w-[min(90vw,420px)] max-[980px]:block" data-tour="trophies">
+              <TrophyCabinetPanel card={card} onAwardClick={setActiveAward} />
+            </div>
+          )}
+        </div>
+
+        {/* right — scouting metrics, then the trophy cabinet (distribution
+            graph behind the rank modal) or, on trophy-less cards, the
+            distribution panel in its old slot */}
+        <div className="flex max-[980px]:order-3 max-[980px]:w-full max-[980px]:max-w-[420px] max-[980px]:justify-center">
+          <div className="flex w-full max-w-[360px] flex-col gap-[14px]">
+            <MetricsPanel card={card} />
+            {/* The two quiet lines sit together; empty:hidden drops the gap
+                while neither has anything to show. */}
+            <div className="flex flex-col gap-[4px] empty:hidden">
+              {onRescouted && <RescoutLine card={card} onRescouted={onRescouted} />}
+              {!demo && rank && <RankLine login={card.login} rank={rank} />}
+            </div>
+            {hasAwards ? (
+              <>
+                <div className="max-[980px]:hidden" data-tour="trophies">
+                  <TrophyCabinetPanel card={card} onAwardClick={setActiveAward} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRankOpen(true)}
+                  className="cursor-pointer self-center text-[12px] font-semibold text-ink-soft underline-offset-2 transition hover:text-brand hover:underline"
+                >
+                  see where your profile ranks ↗
+                </button>
+              </>
+            ) : (
+              <DistributionPanel card={card} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      <footer className="relative z-[2] mt-auto flex flex-none items-center justify-center p-[clamp(12px,2.6vh,24px)]">
+        <FooterCredit />
+      </footer>
+
+      {/* Off-screen story canvas (1080×1920). Parked in a 0×0 clip holder at the
+          viewport origin — NOT display:none — so its card art/avatar/fonts paint
+          and decode, letting renderCardImage clone + capture it for the Story
+          download/share. Same off-screen technique as lib/capture.ts. */}
+      <div
+        aria-hidden
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          overflow: "hidden",
+          zIndex: -1,
+          pointerEvents: "none",
+        }}
+      >
+        <StoryFrame ref={storyRef} card={card} />
+      </div>
+    </main>
+
+    {modalOpen && <HowItWorksModal onClose={() => setModalOpen(false)} />}
+
+    {rankOpen && <RankModal card={card} onClose={() => setRankOpen(false)} />}
+
+    {activeAward && (
+      <AwardModal
+        awardKey={activeAward.key}
+        instances={activeAward.instances}
+        onClose={() => setActiveAward(null)}
+      />
+    )}
+    </>
+  );
+}
+
+// The trophy cabinet panel: sits where the distribution graph used to on wide
+// screens, right under the duel CTA on mobile. Gold accents mark it as the
+// prestige section among the report panels; trophies scale to the cabinet —
+// a lone trophy fills the shelf, a full cabinet of 4 tightens up so nothing
+// collides. Click opens the same AwardModal as the duel corners.
+function TrophyCabinetPanel({
+  card,
+  onAwardClick,
+}: {
+  card: Card;
+  onAwardClick: (group: AwardGroup) => void;
+}) {
+  const groups = groupAwards(card.awards);
+  if (groups.length === 0) return null;
+  const size = groups.length === 1 ? 96 : groups.length >= 4 ? 60 : 76;
+  const gap = groups.length >= 4 ? "gap-[clamp(10px,1.2vw,16px)]" : "gap-[clamp(18px,4vw,30px)]";
+
+  return (
+    <section className="relative w-full overflow-hidden rounded-2xl border border-gold/[0.16] bg-white/[0.02] p-[16px]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[60%] h-[140px] w-[80%] -translate-x-1/2 -translate-y-1/2"
+        style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(212,175,55,.10), transparent 70%)" }}
+      />
+      <div className="flex items-center gap-[9px]">
+        <span className="h-[2px] w-[16px] rounded-full bg-gold" />
+        <h3 className="font-display text-[11px] font-bold tracking-[.22em] text-ink-faint">TROPHY CABINET</h3>
+      </div>
+      <p className="mt-[6px] text-[11px] leading-snug text-ink-mute">
+        Awards earned from this profile&apos;s GitHub history.
+      </p>
+      <div className={`relative mt-[14px] mb-[2px] flex items-end justify-center ${gap}`}>
+        {groups.map((group) => (
+          <button
+            key={group.key}
+            type="button"
+            onClick={() => onAwardClick(group)}
+            aria-label={`${AWARD_META[group.key].title} details`}
+            className="relative flex flex-col items-center cursor-pointer group"
+          >
+            <div className="group-hover:scale-110 active:scale-95 transition-transform duration-200">
+              <TrophySprite
+                sprite={AWARD_SPRITES[group.key].sprite}
+                size={size}
+                className={AWARD_SPRITES[group.key].tint}
+              />
+            </div>
+            {group.instances.length > 1 && (
+              <span className={`font-display absolute right-0 top-0 font-semibold text-gold ${size >= 96 ? "text-[15px]" : "text-[13px]"}`}>
+                ×{group.instances.length}
+              </span>
+            )}
+            <span className="text-[8.5px] font-mono font-bold text-ink-mute tracking-wider mt-[5px] group-hover:text-gold transition-colors">
+              {AWARD_META[group.key].shelfLabel}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// "see where your profile ranks" dialog: houses the distribution histogram.
+// Same conventions as AwardModal — Escape/backdrop close, focus on open,
+// entrance transition.
+function RankModal({ card, onClose }: { card: Card; onClose: () => void }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  // Match the tier accent the histogram already uses, so the dialog reads as
+  // one piece on every finish (gold on icon, red on in-form, ...).
+  const accent = resolveResultTheme(card).ink;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    panelRef.current?.focus();
+    const t = setTimeout(() => setShown(true), 10);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      clearTimeout(t);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-bg-deep/80 p-[22px] backdrop-blur-[6px]"
+      style={{ opacity: shown ? 1 : 0, transition: "opacity .25s ease" }}
+    >
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rank-title"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-[min(480px,100%)] rounded-2xl border border-line bg-[linear-gradient(180deg,var(--color-surface-2),var(--color-panel))] p-[20px] shadow-[0_40px_120px_rgba(0,0,0,.6)] outline-none"
+        style={{
+          opacity: shown ? 1 : 0,
+          transform: shown ? "translateY(0) scale(1)" : "translateY(14px) scale(.985)",
+          transition: "opacity .4s ease, transform .45s cubic-bezier(.16,1,.3,1)",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-[14px] top-[14px] z-[1] cursor-pointer text-ink-mute transition hover:text-ink"
+        >
+          ✕
+        </button>
+        <h3
+          id="rank-title"
+          className="font-display text-xl font-black uppercase leading-tight tracking-wide"
+          style={{ color: accent }}
+        >
+          Where you rank
+        </h3>
+        <p className="mb-[14px] mt-[6px] text-[13px] leading-relaxed text-ink-soft">
+          Compare this card with a reference sample of GitHub profiles captured July 21, 2026.
+        </p>
+        <DistributionPanel card={card} bare />
+      </div>
+    </div>
+  );
+}
