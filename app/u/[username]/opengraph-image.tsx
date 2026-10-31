@@ -21,8 +21,8 @@ const TIER_ACCENT: Record<string, string> = {
   bronze: "#cd7f32",
   silver: "#c0c7d0",
   gold: "#e9cc74",
-  totw: "#7fa8ff",
-  toty: "#7fa8ff",
+  totw: "#ff6a2b",
+  toty: "#ff9a2e",
   icon: "#e9cc74",
   founder: "#ff2f45",
 };

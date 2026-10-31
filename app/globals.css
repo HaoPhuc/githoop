@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ============================================================
-   GitHoop Design System — basketball luxury spine × GitHub green action
+   GitHoop Design System — black-and-orange court spine × basketball-orange action
    The keystone module: every screen reads from these tokens.
    ============================================================ */
 @theme {
@@ -9,13 +9,13 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains);
 
-  /* basketball spine — blue-black midnight / surfaces / gray / ink / gold */
-  --color-bg: #111111;
-  --color-bg-deep: #080808;
-  --color-panel: #1b1b1b;
-  --color-surface: #1b1b1b;
-  --color-surface-2: #262626;
-  --color-line: #3a3a3a;
+  /* basketball spine — warm black / brown surfaces / gray / ink / gold */
+  --color-bg: #0a0603;
+  --color-bg-deep: #050302;
+  --color-panel: #1a0f08;
+  --color-surface: #1a0f08;
+  --color-surface-2: #2a180c;
+  --color-line: #4a2b14;
   --color-gray: #8b949e;
 
   --color-ink: #e6edf3;
@@ -24,7 +24,7 @@
   --color-ink-faint: #8b949e;
   --color-ink-mute: #8b949e;
 
-  /* GitHub green — "the action" */
+  /* basketball orange — "the action" */
   --color-brand: #f28a43;
   --color-brand-hi: #ffab68;
   --color-brand-mid: #d9682e;
@@ -353,6 +353,20 @@
   0%,
   100% {
     opacity: 0.18;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* the tech backdrop's light nodes, breathing slowly */
+.gf-tech-pulse {
+  animation: gf-tech-pulse var(--gf-dur, 4s) ease-in-out infinite;
+}
+@keyframes gf-tech-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
   }
   50% {
     opacity: 1;

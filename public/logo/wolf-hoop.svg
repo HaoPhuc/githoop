@@ -1,0 +1,56 @@
+<svg role="img" aria-label="GitHoop wolf logo: a cute orange wolf biting a basketball" xmlns="http://www.w3.org/2000/svg" viewBox="-6 0 312 392">
+  <g transform="translate(150 232)" fill="#FFC93C">
+    <path d="M-19 -96L0 -154L19 -96Z" transform="rotate(67.5)"/>
+    <path fill="#F6871F" d="M-15 -96L0 -128L15 -96Z" transform="rotate(90)"/>
+    <path d="M-19 -96L0 -154L19 -96Z" transform="rotate(112.5)"/>
+    <path fill="#F6871F" d="M-15 -96L0 -128L15 -96Z" transform="rotate(135)"/>
+    <path d="M-19 -96L0 -154L19 -96Z" transform="rotate(157.5)"/>
+    <path fill="#F6871F" d="M-15 -96L0 -128L15 -96Z" transform="rotate(180)"/>
+    <path d="M-19 -96L0 -154L19 -96Z" transform="rotate(202.5)"/>
+    <path fill="#F6871F" d="M-15 -96L0 -128L15 -96Z" transform="rotate(225)"/>
+    <path d="M-19 -96L0 -154L19 -96Z" transform="rotate(247.5)"/>
+    <path fill="#F6871F" d="M-15 -96L0 -128L15 -96Z" transform="rotate(270)"/>
+    <path d="M-19 -96L0 -154L19 -96Z" transform="rotate(292.5)"/>
+  </g>
+  <g transform="translate(150 232) rotate(28)"><circle r="80" fill="#F47A1F"/><path d="M-80 0A80 80 0 0 1 80 0C40 -22 -40 -22 -80 0Z" fill="#FF9C3F"/><g fill="none" stroke="#0D0805" stroke-width="5.5" stroke-linecap="round"><circle r="77.25"/><path d="M-80 0H80M0 -80V80"/><path d="M-56.6 -56.6C-24 -28 -24 28 -56.6 56.6"/><path d="M56.6 -56.6C24 -28 24 28 56.6 56.6"/></g></g>
+  <path d="M226 206L246 238L238 276L206 312L150 334L94 312L62 276L54 238L74 206L78 226L88 260L114 288L150 296L186 288L212 260L222 226Z" fill="#A94A14" stroke="#0D0805" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M226 206L246 238L238 276L212 260L222 226Z" fill="#6B2F10"/>
+  <path d="M74 206L54 238L62 276L88 260L78 226Z" fill="#A94A14"/>
+  <path d="M238 276L206 312L150 334V296L186 288L212 260Z" fill="#D9701F"/>
+  <path d="M62 276L94 312L150 334V296L114 288L88 260Z" fill="#F4A545"/>
+  <path d="M150 62L176 56L210 8L224 14L242 84L262 112L250 126L276 150L252 164L264 190L234 188L226 206L206 176L180 192L150 176L120 192L94 176L74 206L66 188L36 190L48 164L24 150L50 126L38 112L58 84L76 14L90 8L124 56Z" fill="#6B2F10" stroke="#0D0805" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M176 56L210 8L224 14L242 84L212 92Z" fill="#6B2F10"/>
+  <path d="M124 56L90 8L76 14L58 84L88 92Z" fill="#A94A14"/>
+  <path d="M208 30L192 70L224 80Z" fill="#F4A545"/>
+  <path d="M92 30L108 70L76 80Z" fill="#F4A545"/>
+  <path d="M124 56L150 62L176 56L158.8 79.9H141.2Z" fill="#6B2F10"/>
+  <path d="M176 56L212 92L164.3 96.6L158.8 79.9Z" fill="#3A1A0A"/>
+  <path d="M124 56L88 92L135.7 96.6L141.2 79.9Z" fill="#6B2F10"/>
+  <path d="M141.2 79.9H158.8L164.3 96.6L150 107L135.7 96.6Z" fill="#A94A14"/>
+  <path d="M150 107L164.3 96.6L212 92L230 124L176 128L150 118Z" fill="#A94A14"/>
+  <path d="M150 107L135.7 96.6L88 92L70 124L124 128L150 118Z" fill="#D9701F"/>
+  <path d="M212 92L242 84L262 112L250 126L230 124Z" fill="#A94A14"/>
+  <path d="M88 92L58 84L38 112L50 126L70 124Z" fill="#D9701F"/>
+  <path d="M176 128L230 124L252 164L206 176L196 152Z" fill="#F4A545"/>
+  <path d="M124 128L70 124L48 164L94 176L104 152Z" fill="#FFD98F"/>
+  <path d="M230 124L250 126L276 150L252 164Z" fill="#D9701F"/>
+  <path d="M70 124L50 126L24 150L48 164Z" fill="#A94A14"/>
+  <path d="M206 176L252 164L264 190L234 188L226 206Z" fill="#D9701F"/>
+  <path d="M94 176L48 164L36 190L66 188L74 206Z" fill="#F4A545"/>
+  <path d="M150 118L176 128L196 152L206 176L180 192L150 176Z" fill="#FFD98F"/>
+  <path d="M150 118L124 128L104 152L94 176L120 192L150 176Z" fill="#FFF0D2"/>
+  <g fill="#FFFFFF" stroke="#0D0805" stroke-width="3.5" stroke-linejoin="round">
+    <path d="M164 186L186 190L173 212Z"/>
+    <path d="M136 186L114 190L127 212Z"/>
+  </g>
+  <path d="M206 176L180 192L150 176L120 192L94 176" fill="none" stroke="#0D0805" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M132 138H168L150 158Z" fill="#0D0805" stroke="#0D0805" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="142" cy="142" r="3" fill="#FFFFFF"/>
+  <path d="M150 158V176" stroke="#0D0805" stroke-width="4"/>
+  <ellipse cx="197" cy="113" rx="20" ry="23" fill="#0D0805"/>
+  <ellipse cx="103" cy="113" rx="20" ry="23" fill="#0D0805"/>
+  <circle cx="190" cy="104" r="7.5" fill="#FFFFFF"/>
+  <circle cx="96" cy="104" r="7.5" fill="#FFFFFF"/>
+  <circle cx="204" cy="122" r="3.5" fill="#FFFFFF"/>
+  <circle cx="110" cy="122" r="3.5" fill="#FFFFFF"/>
+</svg>

@@ -3,9 +3,10 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Card, StatKey } from "@/lib/scoring/types";
 import { resolveCardTheme } from "@/components/finishTheme";
-import { languageLogoUrl } from "@/lib/github/languages";
+import { isDarkLogo, languageLogoUrl } from "@/lib/github/languages";
 import { cardDisplayName } from "@/lib/text";
 import { SITE_HOST } from "@/lib/site";
+import { AVATAR_CQW, evenWeeks, yearRingUri } from "@/lib/yearRing";
 import { loadCardFonts } from "./card";
 
 // Server-side re-creation of the in-app PlayerCard (components/PlayerCard.tsx),
@@ -13,8 +14,9 @@ import { loadCardFonts } from "./card";
 // (opengraph-image). Rendered with Satori (next/og); the layout IS PlayerCard —
 // percentage x/y positions verbatim, cqw font sizes resolved to px at the chosen
 // width (1cqw = 1% of card width), so the same card scales by passing a different
-// W. Satori can't do CSS mask-image, so the avatar's feather is baked into the PNG
-// with sharp (see avatarDataUri); everything else matches the live card.
+// W. Satori can't do CSS mask-image, so the avatar's shape (the disc's circle, or a
+// founder's feather) is baked into the PNG with sharp (see avatarDataUri);
+// everything else matches the live card.
 
 const EMBED_W = 810; // /<user>.png render width (540 native × 1.5 for crispness)
 const cardH = (w: number) => Math.round((w * 820) / 540); // native 540×820 aspect
@@ -75,8 +77,22 @@ async function fetchDataUri(url: string): Promise<string | null> {
   return r ? `data:${r.mime};base64,${r.buf.toString("base64")}` : null;
 }
 
+// The ring cards' avatar shape, an SVG alpha mask at the avatar's size.
+const circleMask = (d: number) => [
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${d}" height="${d}"><circle cx="${d / 2}" cy="${d / 2}" r="${d / 2}" fill="#fff"/></svg>`,
+];
+
+// A founder's feathered cut-out.
+const featherMasks = (bw: number, bh: number) => [
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${bw}" height="${bh}"><defs><radialGradient id="g" cx="52%" cy="41%" r="62%"><stop offset="50%" stop-color="#fff" stop-opacity="1"/><stop offset="84%" stop-color="#fff" stop-opacity="0"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><rect width="${bw}" height="${bh}" fill="url(#g)"/></svg>`,
+  // Top fade: transparent at the very top → opaque by ~22% down (mirrors the live
+  // card's linear-gradient(180deg, transparent 1%, #000 22%)), so the avatar
+  // never covers the crest emblem at the top of the card.
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${bw}" height="${bh}"><defs><linearGradient id="tf" x1="0" y1="0" x2="0" y2="1"><stop offset="1%" stop-color="#fff" stop-opacity="0"/><stop offset="22%" stop-color="#fff" stop-opacity="1"/></linearGradient></defs><rect width="${bw}" height="${bh}" fill="url(#tf)"/></svg>`,
+];
+
 // Falls back to the raw photo (then the silhouette) if sharp or the fetch fails.
-async function avatarDataUri(url: string, bw: number, bh: number): Promise<string> {
+async function avatarDataUri(url: string, bw: number, bh: number, masks: string[]): Promise<string> {
   const r = await fetchBytes(url);
   if (!r) {
     console.error("[renderCard] avatar fetch failed:", url);
@@ -84,27 +100,34 @@ async function avatarDataUri(url: string, bw: number, bh: number): Promise<strin
   }
   try {
     const sharp = (await import("sharp")).default;
-  
-    const radialMask = Buffer.from(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${bw}" height="${bh}"><defs><radialGradient id="g" cx="52%" cy="41%" r="62%"><stop offset="50%" stop-color="#fff" stop-opacity="1"/><stop offset="84%" stop-color="#fff" stop-opacity="0"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><rect width="${bw}" height="${bh}" fill="url(#g)"/></svg>`,
-    );
-    // Top fade: transparent at the very top → opaque by ~22% down (mirrors the live
-    // card's linear-gradient(180deg, transparent 1%, #000 22%)), so the avatar
-    // never covers the crest emblem at the top of the card.
-    const topMask = Buffer.from(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${bw}" height="${bh}"><defs><linearGradient id="tf" x1="0" y1="0" x2="0" y2="1"><stop offset="1%" stop-color="#fff" stop-opacity="0"/><stop offset="22%" stop-color="#fff" stop-opacity="1"/></linearGradient></defs><rect width="${bw}" height="${bh}" fill="url(#tf)"/></svg>`,
-    );
     const out = await sharp(r.buf)
       .resize(bw, bh, { fit: "cover", position: "top" })
-      .composite([
-        { input: radialMask, blend: "dest-in" },
-        { input: topMask, blend: "dest-in" },
-      ])
+      .composite(masks.map((mask) => ({ input: Buffer.from(mask), blend: "dest-in" as const })))
       .png()
       .toBuffer();
     return `data:image/png;base64,${out.toString("base64")}`;
   } catch (e) {
-    console.error("[renderCard] sharp feather failed:", (e as Error).message);
+    console.error("[renderCard] sharp mask failed:", (e as Error).message);
+    return `data:${r.mime};base64,${r.buf.toString("base64")}`;
+  }
+}
+
+// Satori has no CSS filters, so a near-black logo is flipped here to match
+// LIGHTEN_LOGO on the live card. Falls back to the logo as it is.
+async function lightLogoDataUri(url: string, size: number): Promise<string | null> {
+  const r = await fetchBytes(url);
+  if (!r) return null;
+  try {
+    const sharp = (await import("sharp")).default;
+    const out = await sharp(r.buf, { density: 300 })
+      .resize(size, size, { fit: "inside" })
+      .negate({ alpha: false })
+      .modulate({ hue: 180 })
+      .png()
+      .toBuffer();
+    return `data:image/png;base64,${out.toString("base64")}`;
+  } catch (e) {
+    console.error("[renderCard] sharp logo flip failed:", (e as Error).message);
     return `data:${r.mime};base64,${r.buf.toString("base64")}`;
   }
 }
@@ -115,19 +138,27 @@ async function avatarDataUri(url: string, bw: number, bh: number): Promise<strin
 // skip re-reading the three .otf files — e.g. the duel poster renders two cards
 // but passes only one card's fonts to ImageResponse.
 export async function loadCardAssets(card: Card, w: number, withFonts = true) {
-  const avW = Math.round((w * 68) / 100);
-  const avH = Math.round((w * 70) / 100);
-  const bgRel = resolveCardTheme(card).bg.replace(/\.webp$/, ".png"); // Satori can't decode webp
+  const t = resolveCardTheme(card);
+  const avD = Math.round((w * AVATAR_CQW.size) / 100);
+  const avW = t.ring ? avD : Math.round((w * 68) / 100);
+  const avH = t.ring ? avD : Math.round((w * 70) / 100);
+  const bgRel = t.bg.replace(/\.webp$/, ".png"); // Satori can't decode webp
+  const ring = t.ring ? yearRingUri(card.weeks ?? evenWeeks(card.finish), t.ring) : null;
+  const slug = card.languageLogo?.slug;
   const [fonts, bg, avatar, flag, logo] = await Promise.all([
     withFonts
       ? loadCardFonts()
       : Promise.resolve([] as Awaited<ReturnType<typeof loadCardFonts>>),
     fileDataUri(publicFile(bgRel), bgRel.endsWith(".svg") ? "image/svg+xml" : "image/png"),
-    avatarDataUri(card.avatarUrl, avW, avH),
+    avatarDataUri(card.avatarUrl, avW, avH, t.ring ? circleMask(avD) : featherMasks(avW, avH)),
     card.country ? fileDataUri(publicFile(`/badges/flags/${card.country}.png`), "image/png") : Promise.resolve(null),
-    card.languageLogo ? fetchDataUri(languageLogoUrl(card.languageLogo.slug)) : Promise.resolve(null),
+    !slug
+      ? Promise.resolve(null)
+      : ring && isDarkLogo(slug)
+        ? lightLogoDataUri(languageLogoUrl(slug), Math.round(w / 4))
+        : fetchDataUri(languageLogoUrl(slug)),
   ]);
-  return { fonts, bg, avatar, flag, logo, avW, avH };
+  return { fonts, bg, ring, avatar, flag, logo, avW, avH };
 }
 
 export type CardAssets = Awaited<ReturnType<typeof loadCardAssets>>;
@@ -141,16 +172,29 @@ export function cardTree(card: Card, assets: CardAssets, w: number) {
   const t = resolveCardTheme(card);
   const ink = t.ink;
   const displayName = cardDisplayName(card.name).toUpperCase();
-  const { bg, avatar, flag, logo, avW, avH } = assets;
+  const { bg, ring, avatar, flag, logo, avW, avH } = assets;
+  // The ring cards' lower shield comes to a point, so the signature sits above it.
+  const signature = ring
+    ? { left: 20, right: "20%", top: 87.2, size: 3, maxWidth: 29 }
+    : { left: 8, right: "8%", top: 94.6, size: 4.1, maxWidth: 40 };
 
   return (
     <div style={{ width: w, height: H, display: "flex", position: "relative", fontFamily: "DINPro" }}>
       {/* tier background art (stretched to the card box, like PlayerCard's objectFit:fill) */}
       {bg && <img alt="" src={bg} width={w} height={H} style={{ position: "absolute", left: 0, top: 0, width: w, height: H }} />}
 
-      {/* avatar — pre-feathered to a FUT cut-out (alpha baked in by sharp), so the
-          card art shows through its soft edges exactly like the live card */}
-      <img alt="" src={avatar} width={avW} height={avH} style={{ position: "absolute", left: cqw(27), top: cqw(13), width: avW, height: avH }} />
+      {/* the player's Year Ring, over the art and behind the avatar */}
+      {ring && <img alt="" src={ring} width={w} height={H} style={{ position: "absolute", left: 0, top: 0, width: w, height: H }} />}
+
+      {/* avatar — already cut to shape (alpha baked in by sharp), so the card art
+          shows around it exactly like the live card */}
+      <img
+        alt=""
+        src={avatar}
+        width={avW}
+        height={avH}
+        style={{ position: "absolute", left: cqw(ring ? AVATAR_CQW.left : 27), top: cqw(ring ? AVATAR_CQW.top : 13), width: avW, height: avH }}
+      />
 
       {/* separator lines */}
       {H_LINES.map(([l, top, ww], i) => (
@@ -199,11 +243,27 @@ export function cardTree(card: Card, assets: CardAssets, w: number) {
       ))}
 
       {/* signature — branding baked into every shared/embedded card */}
-      <div style={{ ...at(8, 94.6), display: "flex", fontSize: cqw(4.1), fontWeight: 700, letterSpacing: cqw(0.4), color: ink, opacity: 0.62 }}>
+      <div style={{ ...at(signature.left, signature.top), display: "flex", fontSize: cqw(signature.size), fontWeight: 700, letterSpacing: cqw(0.4), color: ink, opacity: 0.62 }}>
         {SITE_HOST.toUpperCase()}
       </div>
-      <div style={{ position: "absolute", right: "8%", top: "94.6%", display: "flex", fontSize: cqw(4.1), fontWeight: 700, letterSpacing: cqw(0.4), color: ink, opacity: 0.62 }}>
-        @{card.login}
+      <div
+        style={{
+          position: "absolute",
+          right: signature.right,
+          top: `${signature.top}%`,
+          display: "block",
+          maxWidth: `${signature.maxWidth}%`,
+          overflow: "hidden",
+          whiteSpace: "nowrap",
+          textOverflow: "ellipsis",
+          fontSize: cqw(signature.size),
+          fontWeight: 700,
+          letterSpacing: cqw(0.4),
+          color: ink,
+          opacity: 0.62,
+        }}
+      >
+        {`@${card.login}`}
       </div>
     </div>
   );

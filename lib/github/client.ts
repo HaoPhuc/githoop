@@ -1,6 +1,7 @@
 import "server-only";
 import { tokenPool, pickToken, pickFailover, recordTokenHealth, benchToken, type PoolToken } from "./tokens";
 import type { YearBreakdown } from "@/lib/scoring/types";
+import { weeklyTotals } from "@/lib/yearRing";
 
 // Server-only GitHub client, on the GraphQL API (api.github.com/graphql).
 // GraphQL is authenticated-only, so a token is REQUIRED — which also puts
@@ -72,6 +73,7 @@ export interface RawPayload {
   recentIssues: number;
   recentRestricted: number; // last-year private contributions (count only)
   recentActiveDays: number;
+  recentWeeks: number[]; // last 52 weeks of contributions, oldest first
   lifetimeContributions: number; // all years, all types, incl. private
   years: YearBreakdown[]; // per-year breakdown behind it, oldest first (failed years omitted)
 }
@@ -694,6 +696,9 @@ function normalize(user: UserNode, years: YearBreakdown[]): RawPayload {
     recentIssues: user.recent.totalIssueContributions,
     recentRestricted: user.recent.restrictedContributionsCount,
     recentActiveDays,
+    recentWeeks: weeklyTotals(
+      user.recent.contributionCalendar.weeks.flatMap((w) => w.contributionDays.map((d) => d.contributionCount)),
+    ),
     lifetimeContributions,
     years,
   };
