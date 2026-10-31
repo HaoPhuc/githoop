@@ -189,6 +189,8 @@ export function buildCard(s: Signals, now = new Date()): Card {
     languageLogo,
     ...(founder ? { founder } : null),
     ...(s.years ? { years: s.years } : null),
+    ...(s.orgs ? { orgs: s.orgs } : null),
+    ...(s.recent_weeks ? { weeks: s.recent_weeks } : null),
     seasons,
     outlook: outlook(s, overall),
     legacy: { L },

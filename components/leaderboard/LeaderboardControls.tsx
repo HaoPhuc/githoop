@@ -5,8 +5,14 @@ import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
 import { boardHref, parsePlayer } from "@/lib/leaderboard";
+import { featuredFirst } from "@/lib/nations";
 
-const countries = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, "en"));
+// Featured basketball nations first, as in the flag picker: the national team
+// you're looking for is at the top instead of 200 countries down. Computed once,
+// it never changes.
+const { list, featuredCount } = featuredFirst([...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, "en")));
+const FEATURED = list.slice(0, featuredCount);
+const REST = list.slice(featuredCount);
 
 // The board's search box and country filter. A plain GET form underneath, so it
 // still works before hydration; with JS it navigates to the same clean URL the
@@ -78,8 +84,15 @@ export default function LeaderboardControls({ country, player }: { country: stri
           className="h-[44px] min-w-0 rounded-xl border border-line bg-panel px-3 text-[14px] text-ink outline-none transition [color-scheme:dark] focus:border-brand/60 disabled:opacity-60 min-[621px]:w-[220px]"
         >
           <option value="">World: every country</option>
+          <optgroup label="Basketball nations">
+            {FEATURED.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
+              </option>
+            ))}
+          </optgroup>
           <optgroup label="All countries">
-            {countries.map((c) => (
+            {REST.map((c) => (
               <option key={c.code} value={c.code}>
                 {c.name}
               </option>

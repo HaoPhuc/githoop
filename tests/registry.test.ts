@@ -22,6 +22,7 @@ const fake = {
     const ops: (() => void)[] = [];
     const tx = {
       hset: (_k: string, f: string, v: string) => (ops.push(() => hash.set(f, v)), tx),
+      hdel: (_k: string, f: string) => (ops.push(() => hash.delete(f)), tx),
       zadd: (k: string, s: number, m: string) => (ops.push(() => zsets.set(k, (zsets.get(k) ?? new Map()).set(m, s))), tx),
       zrem: (k: string, m: string) => (ops.push(() => zsets.get(k)?.delete(m)), tx),
       exec: async () => ops.forEach((op) => op()),
@@ -100,6 +101,32 @@ describe("registry on Redis", () => {
     expect(await r.countPlayers("fr")).toBe(0);
     expect(await r.playerRank("alice", "es")).toEqual({ rank: 1, total: 1 });
     expect(await r.countPlayers()).toBe(1);
+  });
+
+  it("keeps a card's orgs on its entry", async () => {
+    const r = await load();
+    await r.recordCard(card("alice", 80, "fr", { orgs: ["vercel"] }));
+    await r.recordCard(card("bob", 80));
+    expect((await r.getPlayer("alice"))?.orgs).toEqual(["vercel"]);
+    expect((await r.getPlayer("bob"))?.orgs).toBeUndefined();
+  });
+
+  it("takes a player off the board, worldwide and in their country", async () => {
+    const r = await load();
+    await r.recordCard(card("alice", 80, "fr"));
+    await r.recordCard(card("bob", 70, "fr"));
+    await r.removePlayer("Alice");
+    expect(await r.getPlayer("alice")).toBeNull();
+    expect(await r.playerRank("alice")).toBeNull();
+    expect(await r.countPlayers("fr")).toBe(1);
+    expect(await r.playerRank("bob")).toEqual({ rank: 1, total: 1 });
+  });
+
+  it("tells which logins aren't on the board yet, whatever their casing", async () => {
+    const r = await load();
+    await r.recordCard(card("alice", 80));
+    expect(await r.unrecorded(["ALICE", "bob", "carol"])).toEqual(["bob", "carol"]);
+    expect(await r.unrecorded([])).toEqual([]);
   });
 
   it("leaves founder cards out", async () => {

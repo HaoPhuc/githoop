@@ -4,13 +4,14 @@ import type { CSSProperties } from "react";
 import type { StatKey } from "@/lib/scoring/types";
 import type { Club } from "@/lib/scoring/club";
 import { languageLogoUrl } from "@/lib/github/languages";
+import { AVATAR_CQW, evenWeeks, yearRingUri } from "@/lib/yearRing";
 import { CARD_THEME } from "../finishTheme";
 
 // A club on the player card's 540×820 frame (see PlayerCard, whose positions and
-// sizes this mirrors): the tier art, the overall, the formation where a player
-// shows the position, the location's flag, the headline language, the name and
-// the six club stats. The org avatar sits in the portrait window as the crest,
-// whole and unfeathered, since it's a logo rather than a photo.
+// sizes this mirrors): the tier art with an even Year Ring (a club has no single
+// calendar to draw), the overall, the formation where a player shows the
+// position, the location's flag, the headline language, the name and the six club
+// stats. The org avatar sits in the ball as the crest.
 
 const FONT_MEDIUM = "var(--font-din-medium), 'Saira Condensed', sans-serif";
 const FONT_COND = "var(--font-din-cond), 'Saira Condensed', sans-serif";
@@ -50,6 +51,7 @@ export default function ClubCard({ club }: { club: Club }) {
   const t = CARD_THEME[club.finish];
   const ink = t.ink;
   const name = cardName(club);
+  const ring = t.ring ? yearRingUri(evenWeeks(club.finish), t.ring) : null;
 
   const at = (left: number, top: number): CSSProperties => ({ position: "absolute", left: `${left}%`, top: `${top}%` });
 
@@ -73,6 +75,14 @@ export default function ClubCard({ club }: { club: Club }) {
         aria-hidden
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "fill" }}
       />
+      {ring && (
+        <img
+          src={ring}
+          alt=""
+          aria-hidden
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        />
+      )}
 
       {/* the crest */}
       <img
@@ -82,13 +92,12 @@ export default function ClubCard({ club }: { club: Club }) {
         aria-hidden
         style={{
           position: "absolute",
-          left: "38cqw",
-          top: "22cqw",
-          width: "46cqw",
-          height: "46cqw",
+          left: `${AVATAR_CQW.left}cqw`,
+          top: `${AVATAR_CQW.top}cqw`,
+          width: `${AVATAR_CQW.size}cqw`,
+          height: `${AVATAR_CQW.size}cqw`,
           objectFit: "cover",
-          borderRadius: "20%",
-          filter: `drop-shadow(0 3cqw 6cqw rgba(0,0,0,.45)) drop-shadow(0 0 5cqw ${t.avatarHalo})`,
+          borderRadius: "50%",
         }}
       />
 

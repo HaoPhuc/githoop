@@ -252,12 +252,14 @@ export default function ClubView({ club }: { club: Club }) {
           </>
         ) : (
           <p className="py-2 text-[13.5px] text-ink-mute">
-            No contributors to scout on its public repos yet, so there&apos;s no squad.
+            {club.facts.contributors
+              ? "Its top contributors are still being scouted."
+              : "No contributors to scout on its public repos yet, so there's no squad."}
           </p>
         )}
         {club.complete === false && (
           <p className="mt-[8px] text-[12.5px] text-ink-soft">
-            A few players couldn&apos;t be scouted just now. The squad fills in on a later visit.
+            Some players are still being scouted. Refresh in a minute for the full squad.
           </p>
         )}
       </Section>

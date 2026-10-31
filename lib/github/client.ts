@@ -1,6 +1,7 @@
 import "server-only";
 import { tokenPool, pickToken, pickFailover, recordTokenHealth, benchToken, type PoolToken } from "./tokens";
 import type { YearBreakdown } from "@/lib/scoring/types";
+import { weeklyTotals } from "@/lib/yearRing";
 
 // Server-only GitHub client, on the GraphQL API (api.github.com/graphql).
 // GraphQL is authenticated-only, so a token is REQUIRED — which also puts
@@ -66,12 +67,14 @@ export interface RawPayload {
   publicRepos: number;
   repos: RawRepo[]; // owned, non-fork, top 100 by stars (drives the star signals)
   languageRepos: RawRepoLanguage[]; // owned ∪ recently-contributed public repos, deduped — the language signal
+  orgs: string[]; // lowercase logins of the orgs they committed to in public this year, most commits first
   recentCommits: number; // the "recent" fields cover the last 365 days
   recentPRs: number;
   recentReviews: number;
   recentIssues: number;
   recentRestricted: number; // last-year private contributions (count only)
   recentActiveDays: number;
+  recentWeeks: number[]; // last 52 weeks of contributions, oldest first
   lifetimeContributions: number; // all years, all types, incl. private
   years: YearBreakdown[]; // per-year breakdown behind it, oldest first (failed years omitted)
 }
@@ -89,6 +92,8 @@ const LIFETIME_BATCH = 4; // contribution windows per request — stays well und
 // this many commits in the last year — so a single drive-by typo fix to a large
 // polyglot repo can't inflate their language diversity.
 const MIN_CONTRIBUTED_LANG_COMMITS = 3;
+// A player's orgs, most commits first: enough for team chemistry, not a full CV.
+const MAX_ORGS = 5;
 // Abort a GitHub request that hangs at the socket level, instead of letting it
 // hang the whole scout (and, under load, starve other requests). Kept BELOW
 // Vercel's ~10s serverless function cap: at 8s we still get to return a clean
@@ -134,6 +139,7 @@ interface UserNode {
         isFork: boolean;
         isPrivate: boolean;
         primaryLanguage: { name: string } | null;
+        owner?: { __typename: string };
       };
     }[];
     contributionCalendar: {
@@ -264,7 +270,7 @@ function profileQuery(): string {
           restrictedContributionsCount
           commitContributionsByRepository(maxRepositories: 100) {
             contributions { totalCount }
-            repository { nameWithOwner isFork isPrivate primaryLanguage { name } }
+            repository { nameWithOwner isFork isPrivate primaryLanguage { name } owner { __typename } }
           }
           contributionCalendar { weeks { contributionDays { contributionCount } } }
         }
@@ -317,7 +323,7 @@ function recentWindowQuery(fromIso: string, toIso: string): string {
           restrictedContributionsCount
           commitContributionsByRepository(maxRepositories: 100) {
             contributions { totalCount }
-            repository { nameWithOwner isFork isPrivate primaryLanguage { name } }
+            repository { nameWithOwner isFork isPrivate primaryLanguage { name } owner { __typename } }
           }
           contributionCalendar { weeks { contributionDays { contributionCount } } }
         }
@@ -643,6 +649,23 @@ export async function fetchProfile(
   return normalize(user, years);
 }
 
+// Orgs by real work rather than by public membership, which most people keep
+// hidden: public, non-fork org repos with a real commit footprint this year.
+function orgsOf(contributions: UserNode["recent"]["commitContributionsByRepository"]): string[] {
+  const commits = new Map<string, number>();
+  for (const c of contributions) {
+    const r = c.repository;
+    if (r.isFork || r.isPrivate || r.owner?.__typename !== "Organization") continue;
+    if (c.contributions.totalCount < MIN_CONTRIBUTED_LANG_COMMITS) continue;
+    const org = r.nameWithOwner.split("/")[0].toLowerCase();
+    commits.set(org, (commits.get(org) ?? 0) + c.contributions.totalCount);
+  }
+  return [...commits.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, MAX_ORGS)
+    .map(([org]) => org);
+}
+
 function normalize(user: UserNode, years: YearBreakdown[]): RawPayload {
   const lifetimeContributions = years.reduce((s, y) => s + yearTotal(y), 0);
   const repos: RawRepo[] = user.repositories.nodes.map((n) => ({
@@ -688,12 +711,16 @@ function normalize(user: UserNode, years: YearBreakdown[]): RawPayload {
     publicRepos: user.repositories.totalCount,
     repos,
     languageRepos,
+    orgs: orgsOf(user.recent.commitContributionsByRepository ?? []),
     recentCommits: user.recent.totalCommitContributions,
     recentPRs: user.recent.totalPullRequestContributions,
     recentReviews: user.recent.totalPullRequestReviewContributions,
     recentIssues: user.recent.totalIssueContributions,
     recentRestricted: user.recent.restrictedContributionsCount,
     recentActiveDays,
+    recentWeeks: weeklyTotals(
+      user.recent.contributionCalendar.weeks.flatMap((w) => w.contributionDays.map((d) => d.contributionCount)),
+    ),
     lifetimeContributions,
     years,
   };

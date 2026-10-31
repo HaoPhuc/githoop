@@ -2,11 +2,13 @@ import "server-only";
 import { cache } from "react";
 import { redis } from "./redis";
 import { buildCard } from "./scoring/engine";
-import { fetchProfile, fetchWindows, type GithubError, type GithubErrorType } from "./github/client";
+import { fetchProfile, fetchWindows, type GithubError, type GithubErrorType, type RawPayload } from "./github/client";
+import { combinePayloads } from "./github/combine";
 import { signalsFromPayload } from "./github/signals";
 import { SAMPLE_CARDS } from "./github/samples";
 import { computeAwards, wcBallCandidate, WC_EDITIONS, type WcWindowTotals } from "./awards";
 import type { Card } from "./scoring/types";
+import { altsOf, mainAccountOf } from "./merge";
 import { RESCOUT_COOLDOWN_SECONDS } from "./rescout";
 import { recordCard } from "./registry";
 
@@ -26,7 +28,7 @@ import { recordCard } from "./registry";
 // Namespaced alongside githoop:scouts:total. The version segment lets a deploy
 // that changes buildCard's output shape or scoring invalidate every entry at
 // once (bump it) instead of serving stale-shaped cards until their TTL lapses.
-const CACHE_VERSION = "basketball-v1";
+const CACHE_VERSION = "basketball-v2";
 const CARD_TTL_SECONDS = 120 * 60; // 2h — GitHub stats move slowly; longer TTL = fewer refetches of hot profiles under load.
 
 const normalizeLogin = (username: string) => username.trim().replace(/^@/, "").toLowerCase();
@@ -64,8 +66,23 @@ async function writeCache(login: string, card: Card): Promise<void> {
 // surface spreads it: `{ ...card, country }`), so sharing one object is safe.
 const inflight = new Map<string, Promise<Card>>();
 
+// A merged account that's since been deleted just stops counting; anything else
+// fails the build, so a card can't be cached without an account it should count.
+async function altProfile(login: string): Promise<RawPayload | null> {
+  try {
+    return await fetchProfile(login);
+  } catch (e) {
+    if ((e as GithubError).type === "notfound") return null;
+    throw e;
+  }
+}
+
 async function buildFresh(username: string, login: string): Promise<Card> {
-  const card = buildCard(signalsFromPayload(await fetchProfile(username)));
+  const alts = await altsOf(login);
+  const [main, ...others] = await Promise.all([fetchProfile(username), ...alts.map(altProfile)]);
+  const merged = (others as (RawPayload | null)[]).filter((p): p is RawPayload => p !== null);
+  const card = buildCard(signalsFromPayload(combinePayloads(main as RawPayload, merged)));
+  if (merged.length) card.mergedFrom = merged.map((p) => p.login);
   card.awards = computeAwards(card, await wcWindowsFor(card, username));
   card.builtAt = new Date().toISOString();
   await Promise.all([writeCache(login, card), recordCard(card)]);
@@ -99,21 +116,23 @@ async function wcWindowsFor(card: Card, username: string): Promise<WcWindowTotal
 // when the scout fails, so callers keep mapping it to a 404 page / error status /
 // null OG exactly as before.
 export async function scoutCard(username: string): Promise<Card> {
-  const login = normalizeLogin(username);
+  const asked = normalizeLogin(username);
 
   // Tokenless demo: serve the in-memory sample cards by login so the home-fan
   // samples resolve (and the app stays explorable) without a GitHub token. They
   // already live in memory, so they bypass Redis entirely. Checks both env vars
   // so a pool-only deploy (GITHUB_TOKENS without GITHUB_TOKEN) scouts for real.
   if (!process.env.GITHUB_TOKEN && !process.env.GITHUB_TOKENS) {
-    const sample = SAMPLE_CARDS.find((c) => c.login.toLowerCase() === login);
+    const sample = SAMPLE_CARDS.find((c) => c.login.toLowerCase() === asked);
     if (sample) return sample;
   }
 
+  // An account merged into another is answered by the main account's card.
+  const login = await mainAccountOf(asked);
   const cached = await readCache(login);
   if (cached) return cached;
 
-  return build(username, login);
+  return build(login === asked ? username : login, login);
 }
 
 // Coalesce concurrent builds for this login onto one (see `inflight`).
@@ -134,9 +153,10 @@ function build(username: string, login: string): Promise<Card> {
 const lockKeyFor = (login: string) => `githoop:refresh-lock:${login}`;
 
 export async function rescoutCard(username: string): Promise<{ card: Card } | { retryAfter: number }> {
-  const login = normalizeLogin(username);
+  const asked = normalizeLogin(username);
   // Tokenless demo: there's nothing to refetch, the sample is the card.
   if (!process.env.GITHUB_TOKEN && !process.env.GITHUB_TOKENS) return { card: await scoutCard(username) };
+  const login = await mainAccountOf(asked);
   if (redis) {
     try {
       const key = lockKeyFor(login);
@@ -148,7 +168,17 @@ export async function rescoutCard(username: string): Promise<{ card: Card } | { 
       return { retryAfter: 60 };
     }
   }
-  return { card: await build(username, login) };
+  return { card: await build(login === asked ? username : login, login) };
+}
+
+// Forgets the cached cards of accounts that just merged or split, so they rebuild.
+export async function dropCards(logins: string[]): Promise<void> {
+  if (!redis) return;
+  try {
+    await redis.del(...logins.map(keyFor));
+  } catch (e) {
+    console.error("[scout] cache drop failed:", (e as Error).message);
+  }
 }
 
 // HTTP status for a failed scout, shared by the JSON routes.

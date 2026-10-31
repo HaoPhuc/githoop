@@ -32,6 +32,10 @@ export interface Signals {
   // Per-year history, oldest first. Optional: hand-authored sample Signals and
   // previously serialized data predate it.
   years?: YearBreakdown[];
+  orgs?: string[]; // lowercase org logins they committed to this year, most commits first
+  // Weekly contribution totals for the last 52 weeks, oldest first (Year Ring).
+  // Optional for the same reason.
+  recent_weeks?: number[];
 }
 
 // One calendar year of real contribution activity (from GitHub's per-year
@@ -162,5 +166,13 @@ export interface Card {
   builtAt?: string;
   // Capture date for bundled examples, distinct from a live scout timestamp.
   sampledAt?: string;
+  // Orgs they committed to this year (see Signals), behind team chemistry.
+  // Optional so previously serialized cards stay valid.
+  orgs?: string[];
+  // Last 52 weeks of contributions, oldest first: the rays of the card's Year Ring
+  // (lib/yearRing). Optional for the same serialization reason.
+  weeks?: number[];
+  // Other accounts this card counts, when the player merged them (lib/merge).
+  mergedFrom?: string[];
   report: Report;
 }

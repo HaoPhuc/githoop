@@ -1,4 +1,5 @@
 import type { Card, Finish } from "@/lib/scoring/types";
+import type { RingPalette } from "@/lib/yearRing";
 
 // hex (#rgb / #rrggbb) → rgba() string, so a founder's single accent hex can
 // drive translucent glows/tints without hand-writing each alpha variant.
@@ -9,18 +10,21 @@ export function rgba(hex: string, a: number): string {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
-// Each finish maps to an original basketball card image (public/cards), the text ink the
-// Python generator uses for that card, a glow for the card's drop-shadow, and
-// the avatar filter from the Claude Design card: avatarTint is a RADIAL tint —
-// transparent in the centre so the photo shows clearly, ramping to the card
-// colour toward the edges so they blend in; avatarHalo is the avatar's glow.
-// totw reuses the ALL-STAR art; icon uses the legend art.
+// Each finish maps to its Year Ring art (public/cards, scripts/bake-card-art.ts),
+// the text ink, a glow for the card's drop-shadow, and the avatar's treatment:
+// avatarTint darkens the rim of the photo so it sits in the ball; avatarHalo is
+// the glow behind a founder's feathered photo. `ring` is the palette for the
+// player's Year Ring (lib/yearRing), printed from the card's body toward its ink
+// so every tier keeps its own colours, and marks a card as a ring card: circular
+// avatar, ring over the art. Founder art has no ball, so founders leave it out
+// and keep the feather.
 export interface CardTheme {
   bg: string;
   ink: string;
   glow: string;
   avatarTint: string;
   avatarHalo: string;
+  ring?: RingPalette;
 }
 
 export const CARD_THEME: Record<Finish, CardTheme> = {
@@ -28,43 +32,49 @@ export const CARD_THEME: Record<Finish, CardTheme> = {
     bg: "/cards/bronze.svg",
     ink: "#3a2717",
     glow: "rgba(190,120,60,.45)",
-    avatarTint: "radial-gradient(ellipse 72% 76% at 52% 40%, transparent 46%, rgba(106,69,39,.26) 78%, rgba(50,31,14,.44))",
+    avatarTint: "radial-gradient(circle, transparent 62%, rgba(50,31,14,.45))",
     avatarHalo: "rgba(214,163,110,.4)",
+    ring: ["#a9744d", "#906341", "#714e32", "#533823", "#3a2717"],
   },
   silver: {
     bg: "/cards/silver.svg",
     ink: "#303536",
     glow: "rgba(170,188,210,.5)",
-    avatarTint: "radial-gradient(ellipse 72% 76% at 52% 40%, transparent 46%, rgba(170,188,210,.22) 78%, rgba(70,78,90,.42))",
+    avatarTint: "radial-gradient(circle, transparent 62%, rgba(70,78,90,.45))",
     avatarHalo: "rgba(220,228,238,.4)",
+    ring: ["#aab4ba", "#8f989d", "#6d7478", "#4b5153", "#303536"],
   },
   gold: {
     bg: "/cards/gold.svg",
     ink: "#46390c",
     glow: "rgba(225,185,80,.55)",
-    avatarTint: "radial-gradient(ellipse 72% 76% at 52% 40%, transparent 46%, rgba(243,214,121,.24) 78%, rgba(156,118,33,.44))",
+    avatarTint: "radial-gradient(circle, transparent 62%, rgba(84,67,22,.45))",
     avatarHalo: "rgba(243,214,121,.45)",
+    ring: ["#cdac50", "#af9341", "#8a732e", "#64531b", "#46390c"],
   },
   totw: {
     bg: "/cards/hot-streak.svg",
     ink: "#30180c",
     glow: "rgba(90,140,255,.55)",
-    avatarTint: "radial-gradient(ellipse 72% 76% at 52% 40%, transparent 46%, rgba(74,120,210,.22) 78%, rgba(14,35,80,.46))",
+    avatarTint: "radial-gradient(circle, transparent 62%, rgba(60,25,18,.45))",
     avatarHalo: "rgba(127,168,255,.45)",
+    ring: ["#ce5a29", "#ab4b22", "#7f391a", "#532712", "#30180c"],
   },
   toty: {
     bg: "/cards/all-star.svg",
     ink: "#ebcd5b",
     glow: "rgba(90,140,255,.55)",
-    avatarTint: "radial-gradient(ellipse 72% 76% at 52% 40%, transparent 46%, rgba(74,120,210,.22) 78%, rgba(14,35,80,.46))",
+    avatarTint: "radial-gradient(circle, transparent 62%, rgba(14,35,80,.45))",
     avatarHalo: "rgba(127,168,255,.45)",
+    ring: ["#4c80b3", "#6f91a0", "#9ba687", "#c8bc6f", "#ebcd5b"],
   },
   icon: {
     bg: "/cards/hall-of-fame.svg",
     ink: "#625217",
     glow: "rgba(243,213,128,.5)",
-    avatarTint: "radial-gradient(ellipse 72% 76% at 52% 40%, transparent 46%, rgba(243,214,121,.24) 78%, rgba(120,90,30,.46))",
+    avatarTint: "radial-gradient(circle, transparent 62%, rgba(86,69,34,.45))",
     avatarHalo: "rgba(243,214,136,.5)",
+    ring: ["#e0cea0", "#c4b381", "#a1905b", "#7e6e35", "#625217"],
   },
   // Fallback only — real founder cards carry per-person art/accent via
   // resolveCardTheme(); this keeps the Record<Finish> map total.

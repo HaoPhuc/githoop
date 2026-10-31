@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import Background from "@/components/Background";
 import { type GithubError } from "@/lib/github/client";
 import { isOrganization } from "@/lib/github/org";
@@ -92,6 +93,10 @@ export default async function Page({
   // country. No IP/geo fallback — we never put the *viewer's* country on someone
   // else's card.
   let card: Card | null = "card" in res ? res.card : null;
+  // An account merged into another answers with the main card: send them there.
+  if (card && card.login.toLowerCase() !== decodeURIComponent(username).replace(/^@/, "").toLowerCase()) {
+    redirect(`/${card.login}`);
+  }
   let canonicalCountry = ""; // GitHub-derived flag; share links omit ?country= unless overridden
   if (card) {
     after(() => recordScout()); // analytics, flushed after the response (serverless-safe)

@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { cache } from "react";
 import { redis } from "./redis";
 import type { GithubError, GithubErrorType } from "./github/client";
@@ -24,9 +25,9 @@ const PARTIAL_TTL_SECONDS = 15 * 60;
 // Squad scouts in flight at once: enough to finish fifteen cold scouts in a few
 // rounds without one club spending a burst of the token pool.
 const SCOUT_CONCURRENCY = 4;
-// Stop waiting on the squad after this long, so the page answers inside a
-// serverless function's ~10s cap. A late scout still finishes into the card
-// cache; the next build picks it up.
+// Stop waiting on the squad after this long, so the page answers quickly: a
+// club's top contributors are heavy profiles, and fifteen cold scouts can take
+// well past this. The rest carry on behind the response (see buildFresh).
 const SQUAD_BUDGET_MS = 6_000;
 // Scout errors a retry won't fix: the squad is as complete as it will get.
 const FINAL_ERRORS = new Set<GithubErrorType>(["notfound", "invalid"]);
@@ -65,50 +66,65 @@ const toPlayer = (card: Card, c: OrgContributor): SquadPlayer => ({
   contributions: c.contributions,
 });
 
+interface ScoutedSquad {
+  players: SquadPlayer[];
+  complete: boolean;
+}
+
 // The top contributors scouted as players (scoutCard: Redis-cached, single-flight),
 // SCOUT_CONCURRENCY at a time. A failed scout is skipped; `complete` is false when
-// a skip was transient or the budget ran out.
-async function scoutSquad(contributors: OrgContributor[]): Promise<{ players: SquadPlayer[]; complete: boolean }> {
+// a skip was transient or the budget ran out. Past the budget the scouts keep
+// going, and `rest` settles with the whole squad.
+async function scoutSquad(
+  contributors: OrgContributor[],
+): Promise<ScoutedSquad & { rest: Promise<ScoutedSquad> | null }> {
   const picks = contributors.slice(0, SQUAD_SIZE);
   const players: (SquadPlayer | null)[] = picks.map(() => null);
+  const landed = () => players.filter((p): p is SquadPlayer => p !== null);
   let complete = true;
   let next = 0;
-  let late = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<null>((resolve) => {
-    timer = setTimeout(() => {
-      late = true;
-      resolve(null);
-    }, SQUAD_BUDGET_MS);
-  });
 
   const worker = async () => {
-    while (next < picks.length && !late) {
+    while (next < picks.length) {
       const i = next++;
       try {
-        const card = await Promise.race([scoutCard(picks[i].login), deadline]);
-        if (!card) return; // still scouting at the deadline
-        players[i] = toPlayer(card, picks[i]);
+        players[i] = toPlayer(await scoutCard(picks[i].login), picks[i]);
       } catch (e) {
         if (!FINAL_ERRORS.has((e as GithubError).type)) complete = false;
       }
     }
   };
-  await Promise.all(Array.from({ length: SCOUT_CONCURRENCY }, worker));
+  const all = Promise.all(Array.from({ length: SCOUT_CONCURRENCY }, worker)).then(() => ({
+    players: landed(),
+    complete,
+  }));
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), SQUAD_BUDGET_MS);
+  });
+  const done = await Promise.race([all, deadline]);
   clearTimeout(timer);
-  if (late) complete = false;
-  return { players: players.filter((p): p is SquadPlayer => p !== null), complete };
+  return done ? { ...done, rest: null } : { players: landed(), complete: false, rest: all };
 }
 
 async function buildFresh(org: string, login: string): Promise<Club> {
   const payload = await fetchOrg(org);
-  const { players, complete } = await scoutSquad(payload.contributors);
-  const club: Club = {
-    ...buildClub(payload, players),
-    complete: complete && payload.contributorsComplete,
-    builtAt: new Date().toISOString(),
+  const save = async ({ players, complete }: ScoutedSquad): Promise<Club> => {
+    const club: Club = {
+      ...buildClub(payload, players),
+      complete: complete && payload.contributorsComplete,
+      builtAt: new Date().toISOString(),
+    };
+    await writeCache(login, club, club.complete ? CLUB_TTL_SECONDS : PARTIAL_TTL_SECONDS);
+    return club;
   };
-  await writeCache(login, club, club.complete ? CLUB_TTL_SECONDS : PARTIAL_TTL_SECONDS);
+
+  const { rest, ...squad } = await scoutSquad(payload.contributors);
+  const club = await save(squad);
+  // A serverless function freezes once it has responded, so unfinished scouts
+  // need after() to land. They then replace the partial club in the cache.
+  if (rest) after(async () => void (await save(await rest)));
   return club;
 }
 

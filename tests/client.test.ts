@@ -365,6 +365,7 @@ describe("fetchProfile GraphQL error triage + resource-limit fallback", () => {
     expect(windowCalls).toBe(6); // 2 rejected halves + 4 quarters
     expect(payload.recentPRs).toBe(20 * 4);
     expect(payload.recentActiveDays).toBe(4);
+    expect(payload.recentWeeks).toHaveLength(52);
   });
 
   it("degrades a still-over-budget floor window to zeros instead of failing the scout", async () => {
@@ -435,7 +436,7 @@ describe("fetchProfile language diversity (owned ∪ contributed)", () => {
     nameWithOwner: string,
     totalCount: number,
     language: string | null,
-    opts: { isFork?: boolean; isPrivate?: boolean } = {},
+    opts: { isFork?: boolean; isPrivate?: boolean; owner?: { __typename: string } } = {},
   ) => ({
     contributions: { totalCount },
     repository: {
@@ -443,7 +444,30 @@ describe("fetchProfile language diversity (owned ∪ contributed)", () => {
       isFork: opts.isFork ?? false,
       isPrivate: opts.isPrivate ?? false,
       primaryLanguage: language ? { name: language } : null,
+      owner: opts.owner,
     },
+  });
+
+  it("lists the orgs a user commits to, most commits first", async () => {
+    const org = { owner: { __typename: "Organization" } };
+    const user = {
+      ...USER,
+      recent: {
+        ...USER.recent,
+        commitContributionsByRepository: [
+          contrib("Acme/api", 10, "Go", org),
+          contrib("acme/cli", 3, "Rust", org), // same org, case aside: 13 commits
+          contrib("bigco/core", 20, "Go", org),
+          contrib("tiny/one", 2, "Go", org), // below the commit threshold -> excluded
+          contrib("forks/repo", 50, "Go", { ...org, isFork: true }), // fork -> excluded
+          contrib("hidden/repo", 50, "Go", { ...org, isPrivate: true }), // private -> excluded
+          contrib("someone/repo", 50, "Go", { owner: { __typename: "User" } }), // a person's repo -> excluded
+          contrib("unknown/repo", 50, "Go"), // no owner in the response -> excluded
+        ],
+      },
+    };
+    scriptFetch((_t, body) => (body.includes("query Profile") ? ok({ data: { user } }) : ok({ data: { user: {} } })));
+    expect((await fetchProfile(LOGIN, NOW)).orgs).toEqual(["bigco", "acme"]);
   });
 
   const USER_LANGS = {

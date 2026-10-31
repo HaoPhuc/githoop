@@ -5,13 +5,14 @@ import type { Card, StatKey } from "@/lib/scoring/types";
 import { languageLogoUrl } from "@/lib/github/languages";
 import { cardDisplayName } from "@/lib/text";
 import { SITE_HOST } from "@/lib/site";
+import { AVATAR_CQW, evenWeeks, yearRingUri } from "@/lib/yearRing";
 import { resolveCardTheme } from "./finishTheme";
 
 // Basketball card using the shared 540×820 export layout. Positions are
 // percentages of the card (x/540, y/820); font sizes are cqw (px/540×100) so the
-// card scales with its container. The tier background PNG carries the artwork;
-// everything else (rating, name, stats, flag, club, separator lines) is overlaid
-// here exactly where PIL drew it.
+// card scales with its container. The tier background carries the artwork; the
+// player's Year Ring and everything else (rating, name, stats, flag, club,
+// separator lines) are overlaid here exactly where PIL drew it.
 
 const AVATAR_FALLBACK =
   "data:image/svg+xml;utf8," +
@@ -68,6 +69,7 @@ function PlayerCard({ card }: { card: Card }) {
   const t = resolveCardTheme(card);
   const ink = t.ink;
   const displayName = cardDisplayName(card.name).toUpperCase();
+  const ring = t.ring ? yearRingUri(card.weeks ?? evenWeeks(card.finish), t.ring) : null;
 
   const onAvatarError: React.ReactEventHandler<HTMLImageElement> = (e) => {
     e.currentTarget.onerror = null;
@@ -107,69 +109,102 @@ function PlayerCard({ card }: { card: Card }) {
           objectFit: "fill",
         }}
       />
-      <div
-        data-githoop-avatar
-        style={{
-          position: "absolute",
-          inset: 0,
-          WebkitMaskImage: `url("${t.bg}")`,
-          maskImage: `url("${t.bg}")`,
-          WebkitMaskSize: "100% 100%",
-          maskSize: "100% 100%",
-        }}
-      >
+      {ring && (
+        <img
+          src={ring}
+          alt=""
+          aria-hidden
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        />
+      )}
+      {ring ? (
+        // Ring cards hold the photo in a plain circle. No mask here, so unlike the
+        // feathered avatar below it needs no data-githoop-avatar bake on WebKit.
         <div
           style={{
             position: "absolute",
-            left: "27cqw",
-            top: "13cqw",
-            width: "68cqw",
-            height: "70cqw",
-            WebkitMaskImage: AVATAR_MASK_FEATHER,
-            maskImage: AVATAR_MASK_FEATHER,
+            left: `${AVATAR_CQW.left}cqw`,
+            top: `${AVATAR_CQW.top}cqw`,
+            width: `${AVATAR_CQW.size}cqw`,
+            height: `${AVATAR_CQW.size}cqw`,
+            borderRadius: "50%",
+            overflow: "hidden",
+          }}
+        >
+          <img
+            src={card.avatarUrl}
+            onError={onAvatarError}
+            alt={card.login}
+            crossOrigin="anonymous"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          <div style={{ position: "absolute", inset: 0, background: t.avatarTint }} />
+        </div>
+      ) : (
+        <div
+          data-githoop-avatar
+          style={{
+            position: "absolute",
+            inset: 0,
+            WebkitMaskImage: `url("${t.bg}")`,
+            maskImage: `url("${t.bg}")`,
+            WebkitMaskSize: "100% 100%",
+            maskSize: "100% 100%",
           }}
         >
           <div
             style={{
-              width: "100%",
-              height: "100%",
-              WebkitMaskImage: AVATAR_MASK_BOTTOM_FADE,
-              maskImage: AVATAR_MASK_BOTTOM_FADE,
+              position: "absolute",
+              left: "27cqw",
+              top: "13cqw",
+              width: "68cqw",
+              height: "70cqw",
+              WebkitMaskImage: AVATAR_MASK_FEATHER,
+              maskImage: AVATAR_MASK_FEATHER,
             }}
           >
             <div
               style={{
-                position: "relative",
                 width: "100%",
                 height: "100%",
-                WebkitMaskImage: AVATAR_MASK_TOP_FADE,
-                maskImage: AVATAR_MASK_TOP_FADE,
-                filter: `drop-shadow(0 3cqw 6cqw rgba(0,0,0,.5)) drop-shadow(0 0 5cqw ${t.avatarHalo})`,
+                WebkitMaskImage: AVATAR_MASK_BOTTOM_FADE,
+                maskImage: AVATAR_MASK_BOTTOM_FADE,
               }}
             >
-              <img
-                src={card.avatarUrl}
-                onError={onAvatarError}
-                alt={card.login}
-                crossOrigin="anonymous"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center 20%",
-                }}
-              />
               <div
                 style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: t.avatarTint,
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                  WebkitMaskImage: AVATAR_MASK_TOP_FADE,
+                  maskImage: AVATAR_MASK_TOP_FADE,
+                  filter: `drop-shadow(0 3cqw 6cqw rgba(0,0,0,.5)) drop-shadow(0 0 5cqw ${t.avatarHalo})`,
                 }}
-              />
+              >
+                <img
+                  src={card.avatarUrl}
+                  onError={onAvatarError}
+                  alt={card.login}
+                  crossOrigin="anonymous"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "center 20%",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: t.avatarTint,
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* separator lines */}
       {H_LINES.map(([l, top, w], i) => (
