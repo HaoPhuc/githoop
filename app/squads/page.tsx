@@ -5,9 +5,9 @@ import CountrySearch from "@/components/squads/CountrySearch";
 import { Flag } from "@/components/squads/Media";
 import { DemoNote } from "@/components/squads/Panels";
 import { formatCount } from "@/lib/format";
+import { REGIONS } from "@/lib/nations";
 import { REGISTRY_IS_DEMO, countPlayers } from "@/lib/registry";
 import { teamName } from "@/lib/squad";
-
 
 // Featured basketball nations, plus a search that reaches every country.
 export const dynamic = "force-dynamic";
@@ -19,12 +19,6 @@ export const metadata: Metadata = {
   alternates: { canonical: "/squads" },
 };
 
-const REGIONS = [
-  { label: "Americas", codes: ["us", "ca", "mx", "br", "ar", "pr", "do", "ve"] },
-  { label: "Europe", codes: ["es", "fr", "de", "rs", "si", "gr", "lt", "it", "tr", "fi"] },
-  { label: "Africa", codes: ["ng", "ss", "ao", "sn", "ci", "eg"] },
-  { label: "Asia & Oceania", codes: ["au", "nz", "jp", "cn", "ph", "kr", "ir", "lb"] },
-];
 
 export default async function Page() {
   // Best-effort: a failed count reads as 0 (lib/registry), never an error.

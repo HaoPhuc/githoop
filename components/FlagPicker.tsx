@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useReducer, useRef } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useReducer, useRef } from "react";
 import { Pencil, Plus, Search, X } from "lucide-react";
-import { searchCountries } from "@/lib/countries";
+import { flagPickerList } from "@/lib/nations";
 import { comboboxReducer, initialComboboxState } from "@/lib/comboboxNav";
 import { useClickOutside } from "@/hooks/useClickOutside";
 
@@ -41,8 +41,11 @@ export default function FlagPicker({ value, onChange }: Props) {
   const listId = `${baseId}-list`;
   const optionId = (i: number) => `${baseId}-opt-${i}`;
 
-  // Every country is available. Search keeps exact country codes ahead of names.
-  const results = useMemo(() => searchCountries(query), [query]);
+  // Browsing shows the featured basketball nations first, so a national team isn't
+  // buried 200 countries down; searching is left exactly as searchCountries ranked
+  // it (see flagPickerList). The list stays FLAT either way — the combobox addresses
+  // its options by index — so the group headers below are rendered as non-options.
+  const { list: results, featuredCount } = useMemo(() => flagPickerList(query), [query]);
 
   const close = useCallback(() => dispatch({ type: "close" }), []);
   useClickOutside(rootRef, open, close);
@@ -204,32 +207,52 @@ export default function FlagPicker({ value, onChange }: Props) {
             {results.map((c, i) => {
               const selected = c.code === value;
               const highlighted = i === active;
+              // Headers sit at the two group boundaries and are NOT options: they
+              // carry role="presentation" so they stay out of the listbox's index
+              // space, which is what arrow keys and aria-activedescendant address.
+              const header =
+                featuredCount === 0
+                  ? null
+                  : i === 0
+                    ? "Basketball nations"
+                    : i === featuredCount
+                      ? "All countries"
+                      : null;
               return (
-                <li
-                  key={c.code}
-                  id={optionId(i)}
-                  role="option"
-                  aria-selected={selected}
-                  onMouseEnter={() => dispatch({ type: "setActive", index: i })}
-                  onClick={() => choose(c.code)}
-                  className={`flex cursor-pointer items-center gap-[11px] rounded-[9px] px-[10px] py-[8px] text-[14px] transition-colors ${
-                    highlighted ? "bg-brand/15 text-white" : "text-ink-dim"
-                  }`}
-                >
-                  <img
-                    src={FLAG(c.code)}
-                    alt=""
-                    width={24}
-                    height={18}
-                    loading="lazy"
-                    className="h-[18px] w-[24px] flex-none rounded-[2px] object-cover shadow-[0_0_0_1px_rgba(255,255,255,.07)]"
-                  />
-                  <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                  <span className="font-mono text-[11px] uppercase tracking-[.08em] text-ink-mute">
-                    {c.code}
-                  </span>
-                  {selected && <span className="h-[6px] w-[6px] flex-none rounded-full bg-brand" />}
-                </li>
+                <Fragment key={c.code}>
+                  {header && (
+                    <li
+                      role="presentation"
+                      className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-semibold uppercase tracking-[.12em] text-ink-mute"
+                    >
+                      {header}
+                    </li>
+                  )}
+                  <li
+                    id={optionId(i)}
+                    role="option"
+                    aria-selected={selected}
+                    onMouseEnter={() => dispatch({ type: "setActive", index: i })}
+                    onClick={() => choose(c.code)}
+                    className={`flex cursor-pointer items-center gap-[11px] rounded-[9px] px-[10px] py-[8px] text-[14px] transition-colors ${
+                      highlighted ? "bg-brand/15 text-white" : "text-ink-dim"
+                    }`}
+                  >
+                    <img
+                      src={FLAG(c.code)}
+                      alt=""
+                      width={24}
+                      height={18}
+                      loading="lazy"
+                      className="h-[18px] w-[24px] flex-none rounded-[2px] object-cover shadow-[0_0_0_1px_rgba(255,255,255,.07)]"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                    <span className="font-mono text-[11px] uppercase tracking-[.08em] text-ink-mute">
+                      {c.code}
+                    </span>
+                    {selected && <span className="h-[6px] w-[6px] flex-none rounded-full bg-brand" />}
+                  </li>
+                </Fragment>
               );
             })}
           </ul>

@@ -23,7 +23,8 @@ Copy `.env.example` to `.env.local` to configure:
 | --- | --- |
 | `GITHUB_TOKEN` | Server-side token for live GitHub GraphQL scouting. No write permissions needed. |
 | `GITHUB_TOKENS` | Optional comma-separated token pool. |
-| `REDIS_URL` | Optional shared cache, scouting counter, registry, leaderboard, and national roster persistence. Without Redis, sample-backed views remain available. |
+| `REDIS_URL` | Optional shared cache, scouting counter, registry, leaderboard, and national roster persistence. Required for merging accounts and seeding the leaderboard. Without Redis, sample-backed views remain available. |
+| `CRON_SECRET` | Optional. Unlocks `/api/cron/seed`, which fills the leaderboard from GitHub's follower ranking. The route stays closed without it. |
 | `NEXT_PUBLIC_SITE_URL` | Your app's origin for sharing, embeds, and metadata. Defaults to `http://localhost:3000`; set before production builds. |
 | `NEXT_PUBLIC_SENTRY_DSN` | Optional error monitoring for your own project. |
 | `NEXT_PUBLIC_UMAMI_SRC`, `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Optional analytics; both must be configured. |
@@ -31,10 +32,12 @@ Copy `.env.example` to `.env.local` to configure:
 ## Features
 
 - Player scouting, card reveals, scouting reports, country selection, and PNG downloads.
+- A Year Ring on every card: the last 52 weeks of contributions wrapped around the ball.
+- Merging one person's GitHub accounts into one card at `/merge`, proved by a short code in both bios.
 - Share links, social preview images, and live card embeds at `/<username>.png`.
 - Head-to-head duels at `/<username>/vs/<opponent>` with basketball scoring and overtime.
 - Career progression, potential, fictional player valuations, playstyle badges, and earned awards.
-- A leaderboard with country and position filters.
+- A leaderboard with country and position filters, optionally seeded from GitHub's most followed developers.
 - National rosters with five starters and up to fifteen players, plus GitHub organization teams.
 - Responsive layouts, keyboard controls, and reduced-motion support.
 
@@ -51,9 +54,23 @@ Copy `.env.example` to `.env.local` to configure:
 
 The scout assigns **PG, SG, SF, PF, or C** from a profile's attribute shape. The inherited logarithmic model caps base overall at 88; sustained history and influence can raise it to 99. Tiers are Bronze, Silver, Gold, Hot Streak, All-Star, and Hall of Fame.
 
-Around your photo, the **Year Ring** wraps your last 52 weeks around the ball: one ray a week, seven cells deep. Every extra cell takes twice the contributions, and 64+ in a week fills the ray, so no two cards burn the same.
+Around your photo, the **Year Ring** wraps your last 52 weeks around the ball: one ray a week, seven cells deep. Every extra cell takes twice the contributions, and 64+ in a week fills the ray, so no two cards burn the same. Clubs and cards with no calendar get an even ring sized by tier.
 
 Awards are earned from GitHub activity: MVP for standout seasons, Clutch Performer for strong June development sprints, Scoring Champion for elite shooting, and Championship for sustained elite seasons. These are developer achievements, not claims about real NBA results. Country selection never awards a trophy. Player valuations are fictional and expressed in dollars.
+
+## Merge accounts
+
+Got more than one GitHub account? `/merge` combines up to four into one card. There are no logins, so ownership is proved with a short code added to the bio of both accounts, and the same proof splits a merge. A merged card adds up the accounts' activity and reach under the main account. The other accounts leave the leaderboard, and their pages, image links, and duels answer with the main card. Merging needs Redis.
+
+## Seed the leaderboard
+
+Without seeding, the leaderboard only holds people someone looked up. `/api/cron/seed` scouts the next players down GitHub's follower ranking for about four minutes per run, skipping players already on the board. It needs `REDIS_URL`, a GitHub token, and `CRON_SECRET`.
+
+`vercel.json` runs it daily on Vercel. Anywhere else, call it from your own scheduler:
+
+```sh
+curl -H "Authorization: Bearer $CRON_SECRET" https://your-host.example/api/cron/seed
+```
 
 ## Embed a card
 
@@ -73,6 +90,8 @@ npm run lint
 npm run build
 npm start
 ```
+
+Card art lives in `public/cards`. To change a tier's artwork, edit `scripts/bake-card-art.ts` and run `npx tsx scripts/bake-card-art.ts`.
 
 Built with Next.js App Router, React, TypeScript, Tailwind, and optional Redis. The Dockerfile builds a standalone Node server. Configure your own environment variables and public URL when deploying.
 

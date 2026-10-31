@@ -26,6 +26,7 @@ export interface PlayerEntry {
   topLanguage: string | null;
   stats: Stats;
   builtAt?: string;
+  orgs?: string[]; // absent on entries recorded before cards carried them
 }
 
 export interface RankedPlayer {
@@ -52,6 +53,7 @@ const toEntry = (card: Card): PlayerEntry => ({
   topLanguage: card.topLanguage ?? null,
   stats: card.stats,
   ...(card.builtAt ? { builtAt: card.builtAt } : null),
+  ...(card.orgs ? { orgs: card.orgs } : null),
 });
 
 const idOf = (login: string) => login.toLowerCase();
@@ -93,6 +95,24 @@ export async function recordCard(card: Card): Promise<void> {
     await tx.exec();
   } catch (e) {
     console.error("[registry] record failed:", (e as Error).message);
+  }
+}
+
+// Takes a player off the board, for an account merged into another (lib/merge).
+export async function removePlayer(login: string): Promise<void> {
+  const id = idOf(login);
+  if (!redis) {
+    memoryStore().delete(id);
+    return;
+  }
+  try {
+    const previous = await redis.hget(ENTRIES, id);
+    const country = previous ? (JSON.parse(previous) as PlayerEntry).country : "";
+    const tx = redis.multi().hdel(ENTRIES, id).zrem(WORLD, id);
+    if (country) tx.zrem(countryKey(country), id);
+    await tx.exec();
+  } catch (e) {
+    console.error("[registry] remove failed:", (e as Error).message);
   }
 }
 
@@ -141,6 +161,20 @@ export async function countPlayers(country?: string): Promise<number> {
   } catch (e) {
     console.error("[registry] read failed:", (e as Error).message);
     return 0;
+  }
+}
+
+// The logins not on the board yet, in the order given (lib/seed). Read failures
+// answer with all of them: a re-scout is cheap next to skipping a player.
+export async function unrecorded(logins: string[]): Promise<string[]> {
+  if (!logins.length) return [];
+  if (!redis) return logins.filter((l) => !memoryStore().has(idOf(l)));
+  try {
+    const raw = await redis.hmget(ENTRIES, ...logins.map(idOf));
+    return logins.filter((_, i) => !raw[i]);
+  } catch (e) {
+    console.error("[registry] read failed:", (e as Error).message);
+    return logins;
   }
 }
 

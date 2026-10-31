@@ -235,6 +235,7 @@ async function fetchPayload(login: string): Promise<RawPayload | null> {
     publicRepos: user.repositories.totalCount,
     repos,
     languageRepos,
+    orgs: [],
     recentCommits: user.recent.totalCommitContributions,
     recentPRs: user.recent.totalPullRequestContributions,
     recentReviews: user.recent.totalPullRequestReviewContributions,

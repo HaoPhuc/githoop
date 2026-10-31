@@ -9,6 +9,7 @@ import { loadClub } from "@/lib/club";
 // repos and fielding its top contributors (lib/club). The /club segment is
 // static, so it wins over the /<username> route.
 export const dynamic = "force-dynamic"; // per-org, token-gated, cached in Redis rather than at build
+export const maxDuration = 60; // the squad's slower scouts finish after the response (lib/club)
 
 export async function generateMetadata({ params }: { params: Promise<{ org: string }> }): Promise<Metadata> {
   const { org } = await params;

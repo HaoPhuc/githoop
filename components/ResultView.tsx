@@ -9,6 +9,7 @@ import TiltCard from "./TiltCard";
 import StoryFrame from "./StoryFrame";
 import CardActions from "./CardActions";
 import DuelButton from "./DuelButton";
+import MergeLine from "./MergeLine";
 import RescoutLine from "./RescoutLine";
 import RankLine from "./leaderboard/RankLine";
 import FlagPicker from "./FlagPicker";
@@ -257,6 +258,7 @@ export default function ResultView({
             <div className="flex flex-col gap-[4px] empty:hidden">
               {onRescouted && <RescoutLine card={card} onRescouted={onRescouted} />}
               {!demo && rank && <RankLine login={card.login} rank={rank} />}
+              {!demo && <MergeLine card={card} />}
             </div>
             {hasAwards ? (
               <>

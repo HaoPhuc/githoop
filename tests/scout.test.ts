@@ -15,6 +15,17 @@ vi.mock("@/lib/awards", () => ({
   WC_EDITIONS: [],
 })); // Award calculations are covered by awards.test.ts.
 vi.mock("@/lib/registry", () => ({ recordCard: async () => {} })); // covered by registry.test.ts
+// The merge records, driven per test; lib/merge's own rules are in merge.test.ts.
+const mainOf = new Map<string, string>();
+const altsByMain = new Map<string, string[]>();
+vi.mock("@/lib/merge", () => ({
+  mainAccountOf: async (l: string) => mainOf.get(l) ?? l,
+  altsOf: async (l: string) => altsByMain.get(l) ?? [],
+}));
+vi.mock("@/lib/github/combine", () => ({
+  combinePayloads: (main: { name: string }, alts: { name: string }[]) =>
+    alts.length ? { ...main, name: [main.name, ...alts.map((a) => a.name)].join("+") } : main,
+}));
 
 // In-memory Redis stand-in so read-through caching is exercised without a server.
 // SET honours NX (the re-scout lock); TTL reports a fixed 600s on held keys.
@@ -28,10 +39,11 @@ vi.mock("@/lib/redis", () => ({
       return "OK";
     },
     ttl: async (k: string) => (store.has(k) ? 600 : -2),
+    del: async (...keys: string[]) => keys.filter((k) => store.delete(k)).length,
   },
 }));
 
-import { rescoutCard, scoutCard } from "@/lib/scout";
+import { dropCards, rescoutCard, scoutCard } from "@/lib/scout";
 import type { Card } from "@/lib/scoring/types";
 
 // A promise whose settlement we control, to freeze a fetch mid-flight.
@@ -50,12 +62,76 @@ const payload = (login: string) => ({ login, name: login });
 
 beforeEach(() => {
   store.clear();
+  mainOf.clear();
+  altsByMain.clear();
   fetchProfile.mockReset();
   vi.stubEnv("GITHUB_TOKEN", "test-token"); // skip the tokenless sample fallback
 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
+});
+
+describe("merged accounts", () => {
+  const merge = () => {
+    mainOf.set("alt", "main");
+    altsByMain.set("main", ["alt"]);
+  };
+
+  it("builds the main card from every account and notes the others", async () => {
+    merge();
+    fetchProfile.mockImplementation(async (u: string) => payload(u));
+    const card = await scoutCard("main");
+    expect(fetchProfile.mock.calls.map(([l]) => l)).toEqual(["main", "alt"]);
+    expect(card.name).toBe("main+alt");
+    expect(card.mergedFrom).toEqual(["alt"]);
+  });
+
+  it("answers for the other account with the main card, from the same cache", async () => {
+    merge();
+    fetchProfile.mockImplementation(async (u: string) => payload(u));
+    const viaAlt = await scoutCard("ALT");
+    expect(viaAlt.login).toBe("main");
+    await scoutCard("main");
+    expect(fetchProfile).toHaveBeenCalledTimes(2); // one build across both names
+  });
+
+  it("re-scouts the main card when asked for the other account", async () => {
+    merge();
+    fetchProfile.mockImplementation(async (u: string) => payload(u));
+    const res = await rescoutCard("alt");
+    expect(res).toMatchObject({ card: { login: "main" } });
+    expect(await rescoutCard("main")).toEqual({ retryAfter: 600 }); // one lock for both
+  });
+
+  it("stops counting a deleted account", async () => {
+    merge();
+    fetchProfile.mockImplementation(async (u: string) => {
+      if (u === "alt") throw { type: "notfound", message: "gone" };
+      return payload(u);
+    });
+    const card = await scoutCard("main");
+    expect(card.name).toBe("main");
+    expect(card.mergedFrom).toBeUndefined();
+  });
+
+  it("fails the build when another account can't be read", async () => {
+    merge();
+    fetchProfile.mockImplementation(async (u: string) => {
+      if (u === "alt") throw { type: "ratelimit", message: "limited" };
+      return payload(u);
+    });
+    await expect(scoutCard("main")).rejects.toMatchObject({ type: "ratelimit" });
+    expect(store.size).toBe(0); // nothing cached without the other account
+  });
+
+  it("rebuilds once the cached cards are dropped", async () => {
+    fetchProfile.mockImplementation(async (u: string) => payload(u));
+    await scoutCard("main");
+    await dropCards(["main", "alt"]);
+    await scoutCard("main");
+    expect(fetchProfile).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("scoutCard single-flight", () => {

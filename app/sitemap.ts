@@ -8,6 +8,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: BASE, changeFrequency: "weekly", priority: 1 },
     { url: `${BASE}/leaderboard`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${BASE}/merge`, changeFrequency: "monthly", priority: 0.3 },
     ...SAMPLE_LOGINS.map((login) => ({
       url: `${BASE}/${login}`,
       changeFrequency: "weekly" as const,

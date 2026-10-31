@@ -25,6 +25,7 @@ const payload = (over: Partial<RawPayload> = {}): RawPayload => ({
   publicRepos: 0,
   repos: [],
   languageRepos: [],
+  orgs: [],
   recentCommits: 0,
   recentPRs: 0,
   recentReviews: 0,

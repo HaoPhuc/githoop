@@ -10,6 +10,9 @@ const fetchOrg = vi.fn();
 vi.mock("@/lib/github/org", () => ({ fetchOrg: (o: string) => fetchOrg(o) }));
 const scoutCard = vi.fn();
 vi.mock("@/lib/scout", () => ({ scoutCard: (u: string) => scoutCard(u) }));
+// after() needs a request scope, so tasks are collected here and run by the test.
+const afterTasks: (() => Promise<void>)[] = [];
+vi.mock("next/server", () => ({ after: (task: () => Promise<void>) => afterTasks.push(task) }));
 
 // In-memory Redis stand-in that also records each key's TTL.
 const store = new Map<string, { value: string; ttl: number }>();
@@ -65,6 +68,7 @@ const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 
 beforeEach(() => {
   store.clear();
+  afterTasks.length = 0;
   fetchOrg.mockReset();
   scoutCard.mockReset();
 });
@@ -175,5 +179,31 @@ describe("scoutClub", () => {
     expect(club.squad.size).toBe(5);
     expect(club.complete).toBe(false);
     expect(store.get(KEY)?.ttl).toBe(BRIEF);
+  });
+
+  it("finishes the late scouts after the response and replaces the partial club", async () => {
+    vi.useFakeTimers();
+    fetchOrg.mockResolvedValue(payload(15));
+    // Every scout outlasts the budget, as a big org's top contributors do.
+    scoutCard.mockImplementation(async (l: string) => {
+      await new Promise((r) => setTimeout(r, 7_000));
+      return card(l);
+    });
+
+    const pending = scoutClub("acme");
+    await vi.advanceTimersByTimeAsync(6_000);
+    const club = await pending;
+    expect(club.squad.size).toBe(0);
+    expect(store.get(KEY)?.ttl).toBe(BRIEF);
+    expect(afterTasks).toHaveLength(1);
+
+    const task = afterTasks[0]();
+    await vi.advanceTimersByTimeAsync(28_000); // four rounds of four
+    await task;
+
+    expect(scoutCard).toHaveBeenCalledTimes(15);
+    expect(store.get(KEY)?.ttl).toBe(SIX_HOURS);
+    await expect(scoutClub("acme")).resolves.toMatchObject({ complete: true, squad: { size: 5 } });
+    expect(fetchOrg).toHaveBeenCalledTimes(1);
   });
 });
