@@ -2,8 +2,10 @@
 
 import { memo } from "react";
 
-// Original basketball mark, shared by the home page and loading states.
-// Legacy `kick`/`ball` props remain accepted for shared call sites.
+// GitHoop mascot — the cute wolf biting the basketball (public/logo). Small sizes
+// swap to the simpler head, because the facets and rays turn to mush below about
+// 96px. `animate` adds a gentle float (used on the hero/loading screen). The
+// legacy `kick`/`ball` props are accepted but no longer composite anything.
 interface MascotProps {
   size?: number;
   className?: string;
@@ -17,8 +19,8 @@ interface MascotProps {
 function Mascot({ size = 220, className, animate = true }: MascotProps) {
   return (
     <img
-      src="/basketball.svg"
-      alt="GitHoop basketball"
+      src={size <= 96 ? "/logo/wolf-hoop-small.svg" : "/logo/wolf-hoop.svg"}
+      alt="GitHoop mascot — a cute wolf biting a basketball"
       width={size}
       height={size}
       className={`${animate ? "animate-float" : ""} ${className ?? ""}`}

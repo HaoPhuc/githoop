@@ -3,7 +3,8 @@ import { computeAwards } from "@/lib/awards";
 import type { Card, Signals, YearBreakdown } from "@/lib/scoring/types";
 
 // Compact literals for the baked per-year history (real data, captured
-// 2026-07-21 alongside the other signals).
+// 2026-07-21 alongside the other signals; each recent_weeks is the public
+// contribution calendar for the year up to that date).
 const yr = (
   year: number,
   commits: number,
@@ -42,6 +43,10 @@ const RAW: Signals[] = [
     issues_closed: 2,
     recent_commits: 3255,
     recent_spike: false,
+    recent_weeks: [
+      144, 86, 46, 40, 41, 32, 37, 32, 53, 112, 137, 47, 38, 41, 28, 38, 43, 40, 87, 146, 50, 38, 39, 41, 63, 81,
+      60, 29, 120, 103, 54, 44, 46, 46, 45, 56, 36, 114, 117, 60, 37, 36, 62, 61, 76, 60, 130, 105, 53, 28, 39, 41,
+    ],
     years: [
       yr(2011, 2085, 0, 0, 0, 0), yr(2012, 2289, 0, 0, 0, 0), yr(2013, 2046, 0, 0, 0, 0),
       yr(2014, 2086, 0, 0, 0, 0), yr(2015, 2009, 0, 0, 1, 0), yr(2016, 2275, 0, 0, 0, 0),
@@ -74,6 +79,10 @@ const RAW: Signals[] = [
     issues_closed: 15,
     recent_commits: 2809,
     recent_spike: true,
+    recent_weeks: [
+      0, 1, 0, 0, 2, 2, 1, 1, 5, 17, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 1, 18, 3, 9,
+      13, 42, 178, 95, 105, 69, 23, 39, 81, 26, 21, 28, 17, 4, 13, 1, 121, 139, 124, 204, 383, 595, 671, 454, 335, 178,
+    ],
     years: [
       yr(2013, 73, 1, 0, 0, 0), yr(2014, 53, 4, 0, 2, 43), yr(2015, 1724, 224, 0, 77, 88),
       yr(2016, 269, 33, 0, 10, 164), yr(2017, 9, 1, 0, 1, 666), yr(2018, 5, 2, 1, 2, 148),
@@ -105,6 +114,10 @@ const RAW: Signals[] = [
     issues_closed: 3,
     recent_commits: 566,
     recent_spike: false,
+    recent_weeks: [
+      0, 0, 0, 0, 0, 129, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 112, 220, 599, 64, 236, 40, 0, 8,
+    ],
     years: [yr(2025, 127, 0, 0, 0, 0), yr(2026, 575, 9, 233, 3, 0)],
   },
   {
@@ -130,6 +143,10 @@ const RAW: Signals[] = [
     issues_closed: 4,
     recent_commits: 1488,
     recent_spike: false,
+    recent_weeks: [
+      55, 6, 19, 14, 6, 10, 10, 4, 1, 2, 31, 15, 2, 8, 0, 2, 7, 18, 2, 2, 30, 42, 56, 37, 8, 24,
+      106, 75, 164, 45, 122, 40, 102, 6, 8, 7, 4, 17, 3, 2, 45, 0, 13, 119, 52, 17, 71, 1190, 1426, 184, 500, 1807,
+    ],
     years: [
       yr(2014, 20, 0, 0, 0, 0), yr(2015, 135, 1, 0, 23, 136), yr(2016, 189, 20, 6, 34, 110),
       yr(2017, 17, 3, 4, 4, 29), yr(2018, 1, 1, 0, 0, 11), yr(2019, 16, 2, 0, 0, 103),

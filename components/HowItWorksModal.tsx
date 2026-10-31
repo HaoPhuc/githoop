@@ -39,8 +39,8 @@ const LADDER = [
   { label: "BRONZE", bg: "#2A1A0C", ink: "#F0CFA8" },
   { label: "SILVER", bg: "#262B33", ink: "#D6DCE6" },
   { label: "GOLD", bg: "#3A2806", ink: "#F3D679" },
-  { label: "HOT STREAK", bg: "#4A0A14", ink: "#FFD3D9" },
-  { label: "ALL-STAR", bg: "#10254F", ink: "#CADBFF" },
+  { label: "HOT STREAK", bg: "#3D0E05", ink: "#FFD2B0" },
+  { label: "ALL-STAR", bg: "#4A2307", ink: "#FFC878" },
   { label: "HALL OF FAME", bg: "#2A1A45", ink: "#F3D688" },
 ];
 

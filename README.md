@@ -1,3 +1,5 @@
+<p align="center"><img src="public/logo/wolf-hoop.svg" width="120" alt="GitHoop wolf logo"></p>
+
 # GitHoop
 
 Your GitHub, drafted onto the court. Turn GitHub profiles into basketball player cards inspired by NBA 2K, rated out of 99 from real contributions, stars, and collaboration.
@@ -48,6 +50,8 @@ Copy `.env.example` to `.env.local` to configure:
 | **REB — Rebounding** | Lifetime contributions and active years |
 
 The scout assigns **PG, SG, SF, PF, or C** from a profile's attribute shape. The inherited logarithmic model caps base overall at 88; sustained history and influence can raise it to 99. Tiers are Bronze, Silver, Gold, Hot Streak, All-Star, and Hall of Fame.
+
+Around your photo, the **Year Ring** wraps your last 52 weeks around the ball: one ray a week, seven cells deep. Every extra cell takes twice the contributions, and 64+ in a week fills the ray, so no two cards burn the same.
 
 Awards are earned from GitHub activity: MVP for standout seasons, Clutch Performer for strong June development sprints, Scoring Champion for elite shooting, and Championship for sustained elite seasons. These are developer achievements, not claims about real NBA results. Country selection never awards a trophy. Player valuations are fictional and expressed in dollars.
 

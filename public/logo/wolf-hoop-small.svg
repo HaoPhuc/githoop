@@ -1,0 +1,9 @@
+<svg role="img" aria-label="GitHoop wolf logo" xmlns="http://www.w3.org/2000/svg" viewBox="10 0 280 340">
+  <path d="M150 58L180 52L214 8L232 14L250 86L280 150L262 176L258 250L206 316L150 336L94 316L42 250L38 176L20 150L50 86L68 14L86 8L120 52Z" fill="#D9701F"/>
+  <circle cx="150" cy="238" r="84" fill="#0D0805"/>
+  <g transform="translate(150 238) rotate(28)"><circle r="68" fill="#F47A1F"/><path d="M-68 0A68 68 0 0 1 68 0C34 -18.7 -34 -18.7 -68 0Z" fill="#FF9C3F"/><g fill="none" stroke="#0D0805" stroke-width="8" stroke-linecap="round"><circle r="64"/><path d="M-68 0H68M0 -68V68"/><path d="M-48.1 -48.1C-20.4 -23.8 -20.4 23.8 -48.1 48.1"/><path d="M48.1 -48.1C20.4 -23.8 20.4 23.8 48.1 48.1"/></g></g>
+  <path d="M66 140H234V176L196 196L150 178L104 196L66 176Z" fill="#D9701F"/>
+  <ellipse cx="197" cy="112" rx="24" ry="28" fill="#0D0805"/>
+  <ellipse cx="103" cy="112" rx="24" ry="28" fill="#0D0805"/>
+  <path d="M126 136H174L150 164Z" fill="#0D0805"/>
+</svg>

@@ -2,7 +2,7 @@
 
 export function Section({
   title,
-  accent = "#39d353",
+  accent = "#f28a43",
   aside,
   children,
 }: {

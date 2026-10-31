@@ -32,6 +32,9 @@ export interface Signals {
   // Per-year history, oldest first. Optional: hand-authored sample Signals and
   // previously serialized data predate it.
   years?: YearBreakdown[];
+  // Weekly contribution totals for the last 52 weeks, oldest first (Year Ring).
+  // Optional for the same reason.
+  recent_weeks?: number[];
 }
 
 // One calendar year of real contribution activity (from GitHub's per-year
@@ -150,6 +153,9 @@ export interface Card {
   // Per-year history behind the yearly awards (MVP etc.). Optional so
   // cached/serialized cards from before the awards system stay valid.
   years?: YearBreakdown[];
+  // Last 52 weeks of contributions, oldest first: the rays of the card's Year Ring
+  // (lib/yearRing). Optional for the same serialization reason.
+  weeks?: number[];
   // The trophy cabinet, computed at scout time (lib/awards via lib/scout).
   // Optional for the same serialization reason.
   awards?: AwardInstance[];

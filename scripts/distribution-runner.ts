@@ -241,6 +241,7 @@ async function fetchPayload(login: string): Promise<RawPayload | null> {
     recentIssues: user.recent.totalIssueContributions,
     recentRestricted: user.recent.restrictedContributionsCount,
     recentActiveDays,
+    recentWeeks: [], // only draws the card's Year Ring, not scoring
     lifetimeContributions,
     years: [], // per-year breakdown feeds awards, not scoring — the runner only scores
   };
