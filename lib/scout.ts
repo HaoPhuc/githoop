@@ -28,7 +28,7 @@ import { recordCard } from "./registry";
 // Namespaced alongside githoop:scouts:total. The version segment lets a deploy
 // that changes buildCard's output shape or scoring invalidate every entry at
 // once (bump it) instead of serving stale-shaped cards until their TTL lapses.
-const CACHE_VERSION = "basketball-v2";
+const CACHE_VERSION = "basketball-v3"; // v3: cards carry the orgs behind team chemistry
 const CARD_TTL_SECONDS = 120 * 60; // 2h — GitHub stats move slowly; longer TTL = fewer refetches of hot profiles under load.
 
 const normalizeLogin = (username: string) => username.trim().replace(/^@/, "").toLowerCase();

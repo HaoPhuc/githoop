@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Card, StatKey } from "@/lib/scoring/types";
 import { resolveCardTheme } from "@/components/finishTheme";
-import { languageLogoUrl } from "@/lib/github/languages";
+import { isDarkLogo, languageLogoUrl } from "@/lib/github/languages";
 import { cardDisplayName } from "@/lib/text";
 import { SITE_HOST } from "@/lib/site";
 import { AVATAR_CQW, evenWeeks, yearRingUri } from "@/lib/yearRing";
@@ -14,7 +14,7 @@ import { loadCardFonts } from "./card";
 // (opengraph-image). Rendered with Satori (next/og); the layout IS PlayerCard —
 // percentage x/y positions verbatim, cqw font sizes resolved to px at the chosen
 // width (1cqw = 1% of card width), so the same card scales by passing a different
-// W. Satori can't do CSS mask-image, so the avatar's shape (the ball's circle, or a
+// W. Satori can't do CSS mask-image, so the avatar's shape (the disc's circle, or a
 // founder's feather) is baked into the PNG with sharp (see avatarDataUri);
 // everything else matches the live card.
 
@@ -112,6 +112,26 @@ async function avatarDataUri(url: string, bw: number, bh: number, masks: string[
   }
 }
 
+// Satori has no CSS filters, so a near-black logo is flipped here to match
+// LIGHTEN_LOGO on the live card. Falls back to the logo as it is.
+async function lightLogoDataUri(url: string, size: number): Promise<string | null> {
+  const r = await fetchBytes(url);
+  if (!r) return null;
+  try {
+    const sharp = (await import("sharp")).default;
+    const out = await sharp(r.buf, { density: 300 })
+      .resize(size, size, { fit: "inside" })
+      .negate({ alpha: false })
+      .modulate({ hue: 180 })
+      .png()
+      .toBuffer();
+    return `data:image/png;base64,${out.toString("base64")}`;
+  } catch (e) {
+    console.error("[renderCard] sharp logo flip failed:", (e as Error).message);
+    return `data:${r.mime};base64,${r.buf.toString("base64")}`;
+  }
+}
+
 // Load all image assets for the card at a given render width. Best-effort: a
 // missing asset degrades gracefully, never throws.
 // `withFonts` lets a caller that already has the (identical, static) font set
@@ -124,6 +144,7 @@ export async function loadCardAssets(card: Card, w: number, withFonts = true) {
   const avH = t.ring ? avD : Math.round((w * 70) / 100);
   const bgRel = t.bg.replace(/\.webp$/, ".png"); // Satori can't decode webp
   const ring = t.ring ? yearRingUri(card.weeks ?? evenWeeks(card.finish), t.ring) : null;
+  const slug = card.languageLogo?.slug;
   const [fonts, bg, avatar, flag, logo] = await Promise.all([
     withFonts
       ? loadCardFonts()
@@ -131,7 +152,11 @@ export async function loadCardAssets(card: Card, w: number, withFonts = true) {
     fileDataUri(publicFile(bgRel), bgRel.endsWith(".svg") ? "image/svg+xml" : "image/png"),
     avatarDataUri(card.avatarUrl, avW, avH, t.ring ? circleMask(avD) : featherMasks(avW, avH)),
     card.country ? fileDataUri(publicFile(`/badges/flags/${card.country}.png`), "image/png") : Promise.resolve(null),
-    card.languageLogo ? fetchDataUri(languageLogoUrl(card.languageLogo.slug)) : Promise.resolve(null),
+    !slug
+      ? Promise.resolve(null)
+      : ring && isDarkLogo(slug)
+        ? lightLogoDataUri(languageLogoUrl(slug), Math.round(w / 4))
+        : fetchDataUri(languageLogoUrl(slug)),
   ]);
   return { fonts, bg, ring, avatar, flag, logo, avW, avH };
 }
@@ -148,6 +173,10 @@ export function cardTree(card: Card, assets: CardAssets, w: number) {
   const ink = t.ink;
   const displayName = cardDisplayName(card.name).toUpperCase();
   const { bg, ring, avatar, flag, logo, avW, avH } = assets;
+  // The ring cards' lower shield comes to a point, so the signature sits above it.
+  const signature = ring
+    ? { left: 20, right: "20%", top: 87.2, size: 3, maxWidth: 29 }
+    : { left: 8, right: "8%", top: 94.6, size: 4.1, maxWidth: 40 };
 
   return (
     <div style={{ width: w, height: H, display: "flex", position: "relative", fontFamily: "DINPro" }}>
@@ -214,11 +243,27 @@ export function cardTree(card: Card, assets: CardAssets, w: number) {
       ))}
 
       {/* signature — branding baked into every shared/embedded card */}
-      <div style={{ ...at(8, 94.6), display: "flex", fontSize: cqw(4.1), fontWeight: 700, letterSpacing: cqw(0.4), color: ink, opacity: 0.62 }}>
+      <div style={{ ...at(signature.left, signature.top), display: "flex", fontSize: cqw(signature.size), fontWeight: 700, letterSpacing: cqw(0.4), color: ink, opacity: 0.62 }}>
         {SITE_HOST.toUpperCase()}
       </div>
-      <div style={{ position: "absolute", right: "8%", top: "94.6%", display: "flex", fontSize: cqw(4.1), fontWeight: 700, letterSpacing: cqw(0.4), color: ink, opacity: 0.62 }}>
-        @{card.login}
+      <div
+        style={{
+          position: "absolute",
+          right: signature.right,
+          top: `${signature.top}%`,
+          display: "block",
+          maxWidth: `${signature.maxWidth}%`,
+          overflow: "hidden",
+          whiteSpace: "nowrap",
+          textOverflow: "ellipsis",
+          fontSize: cqw(signature.size),
+          fontWeight: 700,
+          letterSpacing: cqw(0.4),
+          color: ink,
+          opacity: 0.62,
+        }}
+      >
+        {`@${card.login}`}
       </div>
     </div>
   );

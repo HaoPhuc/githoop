@@ -2,11 +2,11 @@
 
 import { memo, type CSSProperties } from "react";
 import type { Card, StatKey } from "@/lib/scoring/types";
-import { languageLogoUrl } from "@/lib/github/languages";
+import { isDarkLogo, languageLogoUrl } from "@/lib/github/languages";
 import { cardDisplayName } from "@/lib/text";
 import { SITE_HOST } from "@/lib/site";
 import { AVATAR_CQW, evenWeeks, yearRingUri } from "@/lib/yearRing";
-import { resolveCardTheme } from "./finishTheme";
+import { LIGHTEN_LOGO, resolveCardTheme } from "./finishTheme";
 
 // Basketball card using the shared 540×820 export layout. Positions are
 // percentages of the card (x/540, y/820); font sizes are cqw (px/540×100) so the
@@ -70,6 +70,10 @@ function PlayerCard({ card }: { card: Card }) {
   const ink = t.ink;
   const displayName = cardDisplayName(card.name).toUpperCase();
   const ring = t.ring ? yearRingUri(card.weeks ?? evenWeeks(card.finish), t.ring) : null;
+  // The ring cards' lower shield comes to a point, so the signature sits above it.
+  const signature = ring
+    ? { left: 20, right: "20%", top: 87.2, size: "3cqw", maxWidth: "29%" }
+    : { left: 8, right: "8%", top: 94.8, size: "4.1cqw", maxWidth: "40%" };
 
   const onAvatarError: React.ReactEventHandler<HTMLImageElement> = (e) => {
     e.currentTarget.onerror = null;
@@ -275,9 +279,10 @@ function PlayerCard({ card }: { card: Card }) {
 
       {/* top language logo — a transparent PNG in the left identity column (under
           the flag), taking the slot the club badge used to occupy. The catalog's
-          PNGs are full-colour on a transparent background, so they read on the
-          card art with no plate. crossOrigin keeps html-to-image export untainted;
-          onError hides it on a CDN miss. Cards without a logo leave the slot empty. */}
+          logos are full-colour on a transparent background, so they read on the
+          card art with no plate; the few near-black ones flip light on ring cards
+          (isDarkLogo). crossOrigin keeps html-to-image export untainted; onError
+          hides it on a CDN miss. Cards without a logo leave the slot empty. */}
       {card.languageLogo && (
         <img
           src={languageLogoUrl(card.languageLogo.slug)}
@@ -292,6 +297,7 @@ function PlayerCard({ card }: { card: Card }) {
             width: "11.875%",
             height: "7.5%",
             objectFit: "contain",
+            filter: ring && isDarkLogo(card.languageLogo.slug) ? LIGHTEN_LOGO : undefined,
           }}
         />
       )}
@@ -348,9 +354,9 @@ function PlayerCard({ card }: { card: Card }) {
       <div className="githoop-signature">
         <div
           style={{
-            ...at(8, 94.8),
+            ...at(signature.left, signature.top),
             fontFamily: FONT_BOLD,
-            fontSize: "4.1cqw",
+            fontSize: signature.size,
             fontWeight: 700,
             letterSpacing: ".1em",
             lineHeight: 1,
@@ -364,13 +370,13 @@ function PlayerCard({ card }: { card: Card }) {
         <div
           style={{
             position: "absolute",
-            right: "8%",
-            top: "94.8%",
-            maxWidth: "40%",
+            right: signature.right,
+            top: `${signature.top}%`,
+            maxWidth: signature.maxWidth,
             overflow: "hidden",
             textOverflow: "ellipsis",
             fontFamily: FONT_BOLD,
-            fontSize: "4.1cqw",
+            fontSize: signature.size,
             fontWeight: 700,
             letterSpacing: ".1em",
             lineHeight: 1,

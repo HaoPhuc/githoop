@@ -154,6 +154,9 @@ export interface Card {
   // Per-year history behind the yearly awards (MVP etc.). Optional so
   // cached/serialized cards from before the awards system stay valid.
   years?: YearBreakdown[];
+  // Last 52 weeks of contributions, oldest first: the rays of the card's Year Ring
+  // (lib/yearRing). Optional for the same serialization reason.
+  weeks?: number[];
   // The trophy cabinet, computed at scout time (lib/awards via lib/scout).
   // Optional for the same serialization reason.
   awards?: AwardInstance[];
@@ -169,9 +172,6 @@ export interface Card {
   // Orgs they committed to this year (see Signals), behind team chemistry.
   // Optional so previously serialized cards stay valid.
   orgs?: string[];
-  // Last 52 weeks of contributions, oldest first: the rays of the card's Year Ring
-  // (lib/yearRing). Optional for the same serialization reason.
-  weeks?: number[];
   // Other accounts this card counts, when the player merged them (lib/merge).
   mergedFrom?: string[];
   report: Report;

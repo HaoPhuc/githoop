@@ -183,3 +183,23 @@ export function topLanguageLogo(rankedNames: string[]): LanguageLogo | null {
 export function languageLogoUrl(slug: string): string {
   return LOGO_URL_OVERRIDES[slug] ?? `${CDN_BASE}/${slug.split("-")[0]}/${slug}.svg`;
 }
+
+// Near-black marks that vanish on the dark cards. Every other logo in the catalog
+// reads as it is, so only these get flipped light (LIGHTEN_LOGO in
+// components/finishTheme). Add a language here when a new logo disappears.
+const DARK_LOGOS = new Set([
+  "astro-original",
+  "awk-original",
+  "bash-original",
+  "cobol-original",
+  "coffeescript-original",
+  "crystal-original",
+  "emacs-original",
+  "handlebars-original",
+  "purescript-original",
+  "rust-original",
+  "solidity-original",
+  "tex-original",
+]);
+
+export const isDarkLogo = (slug: string): boolean => DARK_LOGOS.has(slug);

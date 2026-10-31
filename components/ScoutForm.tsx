@@ -35,7 +35,7 @@ export default function ScoutForm({
     <div className="min-w-0 flex-1">
       {/* mascot — the brand face on the hero */}
       <div className="mb-5 flex items-center gap-4 max-[860px]:justify-center">
-        <Mascot size={74} />
+        <Mascot size={128} />
         <span className="font-display text-[36px] tracking-wide">GitHoop</span>
       </div>
 

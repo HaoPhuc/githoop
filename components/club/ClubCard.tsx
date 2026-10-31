@@ -3,15 +3,15 @@
 import type { CSSProperties } from "react";
 import type { StatKey } from "@/lib/scoring/types";
 import type { Club } from "@/lib/scoring/club";
-import { languageLogoUrl } from "@/lib/github/languages";
+import { isDarkLogo, languageLogoUrl } from "@/lib/github/languages";
 import { AVATAR_CQW, evenWeeks, yearRingUri } from "@/lib/yearRing";
-import { CARD_THEME } from "../finishTheme";
+import { CARD_THEME, LIGHTEN_LOGO } from "../finishTheme";
 
 // A club on the player card's 540×820 frame (see PlayerCard, whose positions and
-// sizes this mirrors): the tier art with an even Year Ring (a club has no single
-// calendar to draw), the overall, the formation where a player shows the
-// position, the location's flag, the headline language, the name and the six club
-// stats. The org avatar sits in the ball as the crest.
+// sizes this mirrors): the tier art, the overall, the formation where a player
+// shows the position, the location's flag, the headline language, the name and
+// the six club stats. The org avatar sits in the portrait window as the crest,
+// whole and unfeathered, since it's a logo rather than a photo.
 
 const FONT_MEDIUM = "var(--font-din-medium), 'Saira Condensed', sans-serif";
 const FONT_COND = "var(--font-din-cond), 'Saira Condensed', sans-serif";
@@ -150,7 +150,13 @@ export default function ClubCard({ club }: { club: Club }) {
           onError={hideOnError}
           alt={club.languageLogo.name}
           title={club.languageLogo.name}
-          style={{ ...at(19.06, 42.25), width: "11.875%", height: "7.5%", objectFit: "contain" }}
+          style={{
+            ...at(19.06, 42.25),
+            width: "11.875%",
+            height: "7.5%",
+            objectFit: "contain",
+            filter: isDarkLogo(club.languageLogo.slug) ? LIGHTEN_LOGO : undefined,
+          }}
         />
       )}
 
